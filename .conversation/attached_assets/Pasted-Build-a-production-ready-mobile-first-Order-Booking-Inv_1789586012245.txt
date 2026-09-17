@@ -1,0 +1,45 @@
+Build a production-ready, mobile-first Order Booking & Invoice Automation web app for "Nadeem Agency" (a distribution/wholesale agency).
+
+STACK REQUIREMENTS:
+- Full-stack JavaScript/TypeScript app (Next.js preferred, or React frontend + Node/Express backend)
+- Database: PostgreSQL hosted on Neon (neon.tech) free tier — do NOT use Replit's paid database add-ons. I will provide a Neon connection string as an environment variable called DATABASE_URL.
+- Use Prisma as the ORM for the database schema and queries.
+- Use NextAuth.js (or a simple JWT-based auth system if not using Next.js) for authentication.
+- Use the "exceljs" npm package for Excel import/export (not just CSV).
+- No paid third-party services of any kind — everything must run on free tiers only.
+
+BUSINESS CONTEXT:
+Order bookers currently visit shops in person, take orders on paper/WhatsApp, then manually build an Excel sheet at day's end. This app replaces that: order bookers enter orders on their phone directly from the shop, using predefined Shop Codes and Product Codes, and the system compiles everything into an exportable Excel file automatically — zero manual re-entry.
+
+USER ROLES:
+1. Admin — manage shops, products, order bookers, pricing, view/edit/cancel all orders, view dashboards, export Excel, manage settings.
+2. Order Booker — simplified mobile interface only: view assigned shops, search shop by name/code, create an order, add products by code/name, enter quantities, see live order total, submit order, view today's submitted orders. No access to admin functions.
+
+DATABASE SCHEMA (relational, enforce unique constraints):
+- users (id, name, role [admin/order_booker], email, password_hash, active)
+- shops (id, shop_code [UNIQUE], shop_name, owner_name, phone, address, city, assigned_order_booker_id, credit_limit, status, notes)
+- products (id, product_code [UNIQUE], product_name, category, unit, price, tax_or_discount, status)
+- orders (id, order_number [auto-generated e.g. ORD-000123], shop_id, order_booker_id, order_date, order_time, subtotal, discount, tax, grand_total, status [submitted/pending/cancelled], created_at, updated_at)
+- order_items (id, order_id, product_id, product_code, quantity, unit_price, line_total)
+
+CORE FEATURES TO BUILD:
+1. Secure login with role-based redirect (admin dashboard vs order booker mobile view).
+2. Admin: full CRUD for shops and products, with Shop Code / Product Code uniqueness validation.
+3. Order Booker mobile flow (must be fast, large touch targets, minimal typing):
+   - Search/select shop by code or name (auto-fills shop details, no manual typing of shop info)
+   - Add products by searching code or name, enter quantity, auto-calculate line total (qty × price)
+   - Running subtotal, discount, tax, and grand total shown live
+   - Order summary/confirmation screen before final submit
+   - Auto-generate order number, date, and timestamp on submit
+   - "Today's Orders" dashboard for the order booker: shops visited, orders submitted, pending count, total sales, and a list of today's orders
+4. Admin dashboard: today's overview (total orders, shops visited, total sales, order bookers, pending/cancelled orders), recent orders table, and order-booker performance view.
+5. Order management for admin: search/filter by shop, order booker, product, date range, and status; edit or cancel orders; view full order history.
+6. Excel Export: admin selects a date range, order booker, shop, and status, then downloads a real .xlsx file (via exceljs) containing all matching orders. Build this with a configurable column-mapping system (column name, order, and format should be easy to adjust later once I provide our exact existing spreadsheet template).
+7. Excel/CSV Import: admin can bulk-upload shops and products from an Excel file, with validation and a clear list of row-level errors (e.g. duplicate shop code, missing required field) before committing the import.
+8. Basic audit trail: log who created/edited/cancelled each order and when.
+
+DESIGN NOTES:
+- Order booker interface: mobile-first, clean, minimal steps, optimized for slow mobile internet, no unnecessary navigation.
+- Admin interface: standard sidebar dashboard layout (Dashboard / Orders / Shops / Products / Order Bookers / Reports / Excel Export / Settings), tables with pagination, search, and filters.
+
+Build this as a real working app with the database and auth fully functional — not just a static UI mockup. Start by setting up the Prisma schema and Neon database connection, then build the authentication system, then the admin CRUD screens, then the order booker mobile flow, then Excel export/import last.

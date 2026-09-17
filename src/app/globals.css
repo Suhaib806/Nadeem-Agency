@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 42 36% 94%;
+    --foreground: 205 33% 18%;
+    --border: 39 24% 84%;
+    --input: 39 24% 84%;
+    --ring: 176 57% 34%;
+    --card: 42 40% 98%;
+    --card-foreground: 205 33% 18%;
+    --primary: 176 57% 34%;
+    --primary-foreground: 42 40% 98%;
+    --secondary: 39 35% 88%;
+    --secondary-foreground: 205 33% 18%;
+    --muted: 40 24% 90%;
+    --muted-foreground: 203 13% 43%;
+    --accent: 14 78% 55%;
+    --accent-foreground: 42 40% 98%;
+    --destructive: 4 67% 47%;
+    --destructive-foreground: 42 40% 98%;
+    --sidebar: 202 31% 19%;
+    --sidebar-foreground: 41 34% 94%;
+    --radius: 0.85rem;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: hsl(var(--background));
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-dm-sans), sans-serif;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.display {
+  font-family: var(--font-space-grotesk), monospace;
+  letter-spacing: -0.045em;
+}
+
+.shell-grid {
+  background-image: linear-gradient(hsl(39 24% 84% / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(39 24% 84% / 0.35) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.fade-up {
+  animation: fade-up 0.35s ease both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}

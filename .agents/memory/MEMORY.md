@@ -1,0 +1,2 @@
+- [Order export client](order-export-client.md) — generated binary export hooks need a browser-download adapter, not direct Blob stringification.
+- [Paginated query counts](paginated-query-counts.md) — list queries with LIMIT/OFFSET must renumber filter placeholders for their separate count query.
