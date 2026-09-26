@@ -51,23 +51,23 @@ export async function ensureSeedData(): Promise<void> {
         const secondBookerId = secondBooker.rows[0].id;
 
         await client.query(
-          `INSERT INTO shops (shop_code, shop_name, owner_name, phone, address, city, assigned_order_booker_id, credit_limit, status)
+          `INSERT INTO shops (shop_code, shop_name, owner_name, phone, address, city, area, assigned_order_booker_id, credit_limit, status)
            VALUES
-           ('SH-1024', 'New Town General Store', 'Imran Shah', '0300 1234567', '18 Main Bazaar', 'Lahore', $1, 250000, 'active'),
-           ('SH-1048', 'Al-Madina Cash & Carry', 'Farooq Ahmed', '0321 7654321', '4 Canal Road', 'Lahore', $1, 400000, 'active'),
-           ('SH-1102', 'City Mart', 'Hina Tariq', '0333 4567890', '22 Model Town', 'Lahore', $2, 175000, 'active'),
-           ('SH-1136', 'Bismillah Traders', 'Rashid Ali', '0345 9876543', '7 Railway Road', 'Lahore', $2, 300000, 'active')`,
+           ('SH-1024', 'New Town General Store', 'Imran Shah', '0300 1234567', '18 Main Bazaar', 'Lahore', 'Main Bazaar', $1, 250000, 'active'),
+           ('SH-1048', 'Al-Madina Cash & Carry', 'Farooq Ahmed', '0321 7654321', '4 Canal Road', 'Lahore', 'Canal Road', $1, 400000, 'active'),
+           ('SH-1102', 'City Mart', 'Hina Tariq', '0333 4567890', '22 Model Town', 'Lahore', 'Model Town', $2, 175000, 'active'),
+           ('SH-1136', 'Bismillah Traders', 'Rashid Ali', '0345 9876543', '7 Railway Road', 'Lahore', 'Railway Road', $2, 300000, 'active')`,
           [bookerId, secondBookerId],
         );
 
         const productRows = await client.query<{ id: number }>(
-          `INSERT INTO products (product_code, product_name, category, unit, price, tax_or_discount, status)
+          `INSERT INTO products (product_code, product_name, company, category, unit, price, tax_or_discount, status, image_url)
            VALUES
-           ('PR-001', 'Surf Excel 1kg', 'Home Care', 'case', 3850, 0, 'active'),
-           ('PR-014', 'Tapal Danedar 190g', 'Grocery', 'box', 1240, 0, 'active'),
-           ('PR-027', 'Lux Soap 100g', 'Personal Care', 'dozen', 960, 0, 'active'),
-           ('PR-041', 'Nestle Milkpak 1L', 'Dairy', 'case', 3700, 0, 'active'),
-           ('PR-052', 'Coca Cola 1.5L', 'Beverages', 'case', 2100, 0, 'active') RETURNING id`,
+           ('PR-001', 'Surf Excel 1kg', 'Master Food', 'Home Care', 'case', 3850, 0, 'active', '/products/surf-excel.jpg'),
+           ('PR-014', 'Tapal Danedar 190g', 'JP Amir Food', 'Grocery', 'box', 1240, 0, 'active', '/products/tapal-danedar.jpg'),
+           ('PR-027', 'Lux Soap 100g', 'Mux Food', 'Personal Care', 'dozen', 960, 0, 'active', '/products/lux-soap.jpg'),
+           ('PR-041', 'Nestle Milkpak 1L', 'Jahanzaib Food', 'Dairy', 'case', 3700, 0, 'active', '/products/nestle-milkpak.jpg'),
+           ('PR-052', 'Coca Cola 1.5L', 'Other', 'Beverages', 'case', 2100, 0, 'active', '/products/coca-cola.jpg') RETURNING id`,
         );
 
         const shopRows = await client.query<{ id: number }>("SELECT id FROM shops ORDER BY id LIMIT 1");

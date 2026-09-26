@@ -1,19 +1,22 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BarChart3, ClipboardList, Plus, Store } from "lucide-react";
+import { ArrowRight, BarChart3, ClipboardList, Download, Plus, Store } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
+import { Button } from "@/components/ui/Button";
 import { Metric, PageHead } from "@/components/ui/Metric";
 import { LoadingBlock } from "@/components/ui/StateBlocks";
+import { ExportModal } from "@/components/export/ExportModal";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
-import { money } from "@/lib/utils";
+import { money, today } from "@/lib/utils";
 import { DashboardSummary } from "@/types";
 
 export default function BookerTodayPage() {
   const { data: user, isLoading: userLoading } = useCurrentUser("order_booker");
+  const [showExport, setShowExport] = useState(false);
 
   const summaryQuery = useQuery<DashboardSummary>({
     queryKey: ["booker-today-summary"],
@@ -42,12 +45,21 @@ export default function BookerTodayPage() {
         title="Today's route"
         description="Your pace, your orders, your route coverage."
         action={
-          <Link
-            href="/booker/new-order"
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white shadow-sm hover:bg-[#d84315] transition"
-          >
-            <Plus size={18} /> New order
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowExport(true)}
+              className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
+            >
+              <Download size={16} /> Export orders
+            </Button>
+            <Link
+              href="/booker/new-order"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white shadow-sm hover:bg-[#d84315] transition"
+            >
+              <Plus size={18} /> New order
+            </Link>
+          </div>
         }
       />
 
@@ -89,6 +101,16 @@ export default function BookerTodayPage() {
           </Link>
         </div>
       </div>
+
+      <ExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        user={user}
+        initialFilters={{
+          from: today(),
+          to: today(),
+        }}
+      />
     </Shell>
   );
 }

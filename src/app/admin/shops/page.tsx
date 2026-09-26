@@ -33,6 +33,7 @@ function ShopForm({
     phone: shop?.phone || "",
     address: shop?.address || "",
     city: shop?.city || "",
+    area: shop?.area || "",
     assignedOrderBookerId: shop?.assignedOrderBookerId ? String(shop.assignedOrderBookerId) : "",
     creditLimit: shop?.creditLimit || 0,
     status: shop?.status || "active",
@@ -47,6 +48,7 @@ function ShopForm({
         : apiFetch("/api/shops", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
+      queryClient.invalidateQueries({ queryKey: ["all-shops-areas"] });
       onClose();
     },
     onError: (err: any) => {
@@ -56,9 +58,14 @@ function ShopForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.area.trim()) {
+      setError("Please specify the area / bazaar name");
+      return;
+    }
     setError(null);
     mutation.mutate({
       ...form,
+      area: form.area.trim() || "General",
       assignedOrderBookerId: form.assignedOrderBookerId ? Number(form.assignedOrderBookerId) : null,
       creditLimit: Number(form.creditLimit),
     });
@@ -86,6 +93,13 @@ function ShopForm({
           value={form.shopName}
           onChange={(e) => setForm((f) => ({ ...f, shopName: e.target.value }))}
           placeholder="e.g. Al-Madina Cash & Carry"
+        />
+        <Field
+          label="Area / Market / Bazaar"
+          required
+          value={form.area}
+          onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
+          placeholder="e.g. Main Bazaar, Urdu Bazaar, Canal Road"
         />
         <Field
           label="Owner name"
@@ -119,7 +133,6 @@ function ShopForm({
           required
           value={form.address}
           onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-          className="sm:col-span-2"
           placeholder="Street address or market location"
         />
 
@@ -164,20 +177,32 @@ export default function ShopsPage() {
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [area, setArea] = useState("");
   const [modalShop, setModalShop] = useState<Shop | null | "new">(null);
 
   const shopsQuery = useQuery<{ items: Shop[]; total: number }>({
-    queryKey: ["shops", search, status],
+    queryKey: ["shops", search, status, area],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (status) params.set("status", status);
+      if (area) params.set("area", area);
       params.set("page", "1");
       params.set("pageSize", "100");
       return apiFetch(`/api/shops?${params.toString()}`);
     },
     enabled: !!user,
   });
+
+  const allShopsQuery = useQuery<{ items: Shop[] }>({
+    queryKey: ["all-shops-areas"],
+    queryFn: () => apiFetch("/api/shops?pageSize=500"),
+    enabled: !!user,
+  });
+
+  const availableAreas = Array.from(
+    new Set((allShopsQuery.data?.items || []).map((s) => s.area?.trim()).filter(Boolean) as string[]),
+  ).sort();
 
   const usersQuery = useQuery<User[]>({
     queryKey: ["users-bookers"],
@@ -189,6 +214,7 @@ export default function ShopsPage() {
     mutationFn: (id: number) => apiFetch(`/api/shops/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
+      queryClient.invalidateQueries({ queryKey: ["all-shops-areas"] });
     },
   });
 
@@ -218,7 +244,19 @@ export default function ShopsPage() {
 
       {/* Filter bar */}
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-[#ded6c3] bg-[#fbf9f4] p-3 sm:flex-row">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search shops by code, name, or city" />
+        <SearchBar value={search} onChange={setSearch} placeholder="Search shops by code, name, area, or city" />
+        <select
+          value={area}
+          onChange={(e) => setArea(e.target.value)}
+          className="h-11 rounded-lg border border-[#ded6c3] bg-[#fbf9f4] px-3 text-sm text-[#1e3441] outline-none focus:border-[#25897c]"
+        >
+          <option value="">All areas / bazaars</option>
+          {availableAreas.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -248,7 +286,7 @@ export default function ShopsPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border border-[#ded6c3] bg-[#fbf9f4] shadow-xs">
           <div className="hidden grid-cols-[1.4fr_1fr_1fr_.8fr_.7fr_80px] gap-4 border-b border-[#ded6c3] bg-[#ded6c3]/30 px-5 py-3 text-[10px] font-bold uppercase tracking-[.12em] text-[#627784] md:grid">
-            <span>Shop</span>
+            <span>Shop & Area</span>
             <span>Contact</span>
             <span>Route assignment</span>
             <span>Credit limit</span>
@@ -262,7 +300,12 @@ export default function ShopsPage() {
               className="grid gap-3 border-b border-[#ded6c3]/60 px-4 py-4 last:border-0 md:grid-cols-[1.4fr_1fr_1fr_.8fr_.7fr_80px] md:items-center md:gap-4 md:px-5"
             >
               <div>
-                <p className="font-bold text-[#1e3441]">{s.shopName}</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="font-bold text-[#1e3441]">{s.shopName}</p>
+                  <span className="inline-flex items-center rounded-md bg-[#25897c]/10 px-2 py-0.5 text-[11px] font-semibold text-[#25897c]">
+                    {s.area || "General"}
+                  </span>
+                </div>
                 <p className="text-xs text-[#627784]">
                   {s.shopCode} · {s.city}
                 </p>

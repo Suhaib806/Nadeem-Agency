@@ -12,6 +12,7 @@ function rowShop(row: Record<string, unknown>) {
     phone: String(row.phone ?? ""),
     address: String(row.address ?? ""),
     city: String(row.city ?? ""),
+    area: String(row.area ?? "General"),
     assignedOrderBookerId: row.assigned_order_booker_id == null ? null : Number(row.assigned_order_booker_id),
     assignedOrderBookerName: row.assigned_order_booker_name == null ? null : String(row.assigned_order_booker_name),
     creditLimit: moneyRaw(row.credit_limit),
@@ -60,8 +61,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const body = await req.json();
     const result = await pool.query(
-      `UPDATE shops SET shop_code = $1, shop_name = $2, owner_name = $3, phone = $4, address = $5, city = $6,
-       assigned_order_booker_id = $7, credit_limit = $8, status = $9, notes = $10, updated_at = NOW() WHERE id = $11 RETURNING *`,
+      `UPDATE shops SET shop_code = $1, shop_name = $2, owner_name = $3, phone = $4, address = $5, city = $6, area = $7,
+       assigned_order_booker_id = $8, credit_limit = $9, status = $10, notes = $11, updated_at = NOW() WHERE id = $12 RETURNING *`,
       [
         body.shopCode,
         body.shopName,
@@ -69,6 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         body.phone ?? "",
         body.address ?? "",
         body.city ?? "",
+        body.area ? String(body.area).trim() : "General",
         body.assignedOrderBookerId ? Number(body.assignedOrderBookerId) : null,
         Number(body.creditLimit ?? 0),
         body.status ?? "active",

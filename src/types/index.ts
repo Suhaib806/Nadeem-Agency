@@ -18,6 +18,7 @@ export interface Shop {
   phone: string;
   address: string;
   city: string;
+  area: string;
   assignedOrderBookerId: number | null;
   assignedOrderBookerName?: string | null;
   creditLimit: number;
@@ -30,11 +31,13 @@ export interface Product {
   id: number;
   productCode: string;
   productName: string;
+  company: string;
   category: string;
   unit: string;
   price: number;
   taxOrDiscount: number;
   status: string;
+  imageUrl?: string | null;
   ordersToday?: number;
 }
 

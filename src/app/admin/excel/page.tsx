@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowDownToLine, Download, FileSpreadsheet, Filter, Upload } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowDownToLine, Calendar, CheckCircle2, Download, FileSpreadsheet, Filter, Upload } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
+import { Field, SelectField } from "@/components/ui/Field";
 import { PageHead } from "@/components/ui/Metric";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
-import { today } from "@/lib/utils";
+import { daysAgo, startOfMonth, today, yesterday } from "@/lib/utils";
+import { Shop, User } from "@/types";
 
 export default function ExcelDeskPage() {
   const { data: user, isLoading: userLoading } = useCurrentUser("admin");
@@ -18,8 +21,30 @@ export default function ExcelDeskPage() {
   const [previewing, setPreviewing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<{ created: number; skipped: number } | null>(null);
+
+  // Enhanced export states
+  const [datePreset, setDatePreset] = useState<string>("today");
+  const [from, setFrom] = useState<string>(today());
+  const [to, setTo] = useState<string>(today());
+  const [shopId, setShopId] = useState<string>("");
+  const [bookerId, setBookerId] = useState<string>("");
+  const [status, setStatus] = useState<string>("" );
+  const [format, setFormat] = useState<string>("summary");
   const [exporting, setExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const [downloadedFilename, setDownloadedFilename] = useState<string | null>(null);
+
+  const shopsQuery = useQuery<{ items: Shop[] }>({
+    queryKey: ["admin-export-shops"],
+    queryFn: () => apiFetch("/api/shops?status=active&pageSize=200"),
+    enabled: !!user,
+  });
+
+  const bookersQuery = useQuery<User[]>({
+    queryKey: ["admin-export-bookers"],
+    queryFn: () => apiFetch("/api/users?status=active"),
+    enabled: !!user,
+  });
 
   if (userLoading || !user) {
     return (
@@ -30,6 +55,31 @@ export default function ExcelDeskPage() {
       </div>
     );
   }
+
+  const shops = shopsQuery.data?.items || [];
+  const bookers = (bookersQuery.data || []).filter((u) => u.role === "order_booker");
+
+  const applyPreset = (preset: string) => {
+    setDatePreset(preset);
+    setExportSuccess(false);
+    setDownloadedFilename(null);
+    if (preset === "today") {
+      setFrom(today());
+      setTo(today());
+    } else if (preset === "yesterday") {
+      setFrom(yesterday());
+      setTo(yesterday());
+    } else if (preset === "last7") {
+      setFrom(daysAgo(7));
+      setTo(today());
+    } else if (preset === "month") {
+      setFrom(startOfMonth());
+      setTo(today());
+    } else if (preset === "all") {
+      setFrom("");
+      setTo("");
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,22 +140,42 @@ export default function ExcelDeskPage() {
   const handleDownloadExport = async () => {
     setExporting(true);
     setExportSuccess(false);
+    setDownloadedFilename(null);
 
     try {
-      const res = await fetch("/api/reports/export");
-      if (!res.ok) throw new Error("Export failed");
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (shopId) params.set("shopId", shopId);
+      if (bookerId) params.set("orderBookerId", bookerId);
+      if (status) params.set("status", status);
+      if (format) params.set("format", format);
+
+      const res = await fetch(`/api/reports/export?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Export failed with status ${res.status}`);
+      }
 
       const blob = await res.blob();
+      let filename = `nadeem-orders-${today()}.xlsx`;
+      const disposition = res.headers.get("content-disposition");
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename=["']?([^"';]+)["']?/);
+        if (match && match[1]) filename = match[1];
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nadeem-orders-${today()}.xlsx`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
       setExportSuccess(true);
+      setDownloadedFilename(filename);
     } catch (err: any) {
       alert(err.message || "Could not download export");
     } finally {
@@ -211,25 +281,143 @@ export default function ExcelDeskPage() {
             <div>
               <h2 className="font-bold">Export orders</h2>
               <p className="mt-1 text-xs text-white/50">
-                Download formatted ExcelJS workbook with full order & line item details.
+                Download formatted Excel workbook with custom date, shop, booker, and status filters.
               </p>
             </div>
             <ArrowDownToLine size={20} className="text-[#e65100]" />
           </div>
 
-          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center gap-3">
-              <Filter size={16} className="text-[#e65100]" />
-              <p className="text-sm font-semibold text-white">Full agency dataset</p>
+          <div className="space-y-4">
+            {/* Date Preset Buttons */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[.1em] text-white/60">
+                  <Calendar size={13} className="text-[#e65100]" /> Date Range
+                </span>
+                <span className="text-[11px] text-white/50">
+                  {from && to ? (from === to ? from : `${from} → ${to}`) : "All dates"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: "today", label: "Today" },
+                  { id: "yesterday", label: "Yesterday" },
+                  { id: "last7", label: "Last 7 Days" },
+                  { id: "month", label: "This Month" },
+                  { id: "all", label: "All Time" },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyPreset(p.id)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                      datePreset === p.id
+                        ? "bg-[#e65100] text-white shadow-xs"
+                        : "bg-white/10 text-white/80 hover:bg-white/15"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-xs leading-5 text-white/60">
-              Generates a multi-column .xlsx sheet formatted with bold emerald headers and formatted numeric currencies for commercial distribution.
-            </p>
+
+            {/* From & To Inputs */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">From date</span>
+                <input
+                  type="date"
+                  value={from}
+                  onChange={(e) => {
+                    setFrom(e.target.value);
+                    setDatePreset("custom");
+                  }}
+                  className="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-sm text-white outline-none focus:border-[#e65100]"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">To date</span>
+                <input
+                  type="date"
+                  value={to}
+                  onChange={(e) => {
+                    setTo(e.target.value);
+                    setDatePreset("custom");
+                  }}
+                  className="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-sm text-white outline-none focus:border-[#e65100]"
+                />
+              </label>
+            </div>
+
+            {/* Shop filter */}
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Retail Shop</span>
+              <select
+                value={shopId}
+                onChange={(e) => setShopId(e.target.value)}
+                className="h-10 w-full rounded-lg border border-white/20 bg-[#1c2e38] px-3 text-sm text-white outline-none focus:border-[#e65100]"
+              >
+                <option value="">All retail shops</option>
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.shopName} · {s.shopCode} ({s.area || s.city})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {/* Booker and Status filters */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Order Booker</span>
+                <select
+                  value={bookerId}
+                  onChange={(e) => setBookerId(e.target.value)}
+                  className="h-10 w-full rounded-lg border border-white/20 bg-[#1c2e38] px-3 text-sm text-white outline-none focus:border-[#e65100]"
+                >
+                  <option value="">All bookers</option>
+                  {bookers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Status</span>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="h-10 w-full rounded-lg border border-white/20 bg-[#1c2e38] px-3 text-sm text-white outline-none focus:border-[#e65100]"
+                >
+                  <option value="">All statuses</option>
+                  <option value="submitted">Submitted only</option>
+                  <option value="pending">Pending only</option>
+                  <option value="cancelled">Cancelled only</option>
+                </select>
+              </label>
+            </div>
+
+            {/* Layout filter */}
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Excel Workbook Layout</span>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="h-10 w-full rounded-lg border border-white/20 bg-[#1c2e38] px-3 text-sm text-white outline-none focus:border-[#e65100]"
+              >
+                <option value="summary">Orders Summary (1 row per order — Products grouped)</option>
+                <option value="both">Complete Workbook (Orders summary + Line Items Detail sheets)</option>
+                <option value="items">Line Items Breakdown (Product rows only)</option>
+              </select>
+            </label>
           </div>
 
           <Button
             variant="accent"
-            className="mt-6 w-full"
+            className="mt-6 w-full min-h-11"
             onClick={handleDownloadExport}
             disabled={exporting}
           >
@@ -237,10 +425,11 @@ export default function ExcelDeskPage() {
             <Download size={16} />
           </Button>
 
-          {exportSuccess && (
-            <p className="mt-3 text-center text-xs font-bold text-[#e65100]">
-              ✓ File downloaded successfully to your device!
-            </p>
+          {exportSuccess && downloadedFilename && (
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-white/10 p-2 text-center text-xs font-bold text-[#e65100]">
+              <CheckCircle2 size={16} />
+              <span>Downloaded: {downloadedFilename}</span>
+            </div>
           )}
         </section>
       </div>

@@ -10,6 +10,7 @@ import { PageHead } from "@/components/ui/Metric";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/ui/StateBlocks";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { ExportModal } from "@/components/export/ExportModal";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money } from "@/lib/utils";
@@ -22,6 +23,7 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [selectedBooker, setSelectedBooker] = useState("");
+  const [showExport, setShowExport] = useState(false);
 
   const usersQuery = useQuery<User[]>({
     queryKey: ["users-bookers"],
@@ -68,12 +70,13 @@ export default function AdminOrdersPage() {
         title="Orders"
         description="Review, filter, verify, and action real-time field orders across all active routes."
         action={
-          <Link
-            href="/admin/excel"
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#ded6c3] bg-[#fbf9f4] px-3.5 text-sm font-bold text-[#1e3441] hover:bg-[#efe9da] transition"
+          <Button
+            variant="outline"
+            onClick={() => setShowExport(true)}
+            className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
           >
-            <Download size={16} /> Export
-          </Link>
+            <Download size={16} /> Export to Excel
+          </Button>
         }
       />
 
@@ -170,6 +173,16 @@ export default function AdminOrdersPage() {
           ))}
         </div>
       )}
+
+      <ExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        user={user}
+        initialFilters={{
+          status,
+          orderBookerId: selectedBooker,
+        }}
+      />
     </Shell>
   );
 }

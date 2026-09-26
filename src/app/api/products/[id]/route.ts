@@ -8,11 +8,13 @@ function rowProduct(row: Record<string, unknown>) {
     id: Number(row.id),
     productCode: String(row.product_code),
     productName: String(row.product_name),
+    company: String(row.company ?? "Other"),
     category: String(row.category),
     unit: String(row.unit),
     price: moneyRaw(row.price),
     taxOrDiscount: moneyRaw(row.tax_or_discount),
     status: String(row.status),
+    imageUrl: row.image_url ? String(row.image_url) : null,
     ordersToday: Number(row.orders_today ?? 0),
   };
 }
@@ -50,16 +52,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const body = await req.json();
     const result = await pool.query(
-      `UPDATE products SET product_code = $1, product_name = $2, category = $3, unit = $4, price = $5,
-       tax_or_discount = $6, status = $7, updated_at = NOW() WHERE id = $8 RETURNING *`,
+      `UPDATE products SET 
+        product_code = COALESCE($1, product_code),
+        product_name = COALESCE($2, product_name),
+        company = COALESCE($3, company),
+        category = COALESCE($4, category),
+        unit = COALESCE($5, unit),
+        price = COALESCE($6, price),
+        tax_or_discount = COALESCE($7, tax_or_discount),
+        status = COALESCE($8, status),
+        image_url = CASE WHEN $9::boolean THEN $10 ELSE image_url END,
+        updated_at = NOW() 
+       WHERE id = $11 RETURNING *`,
       [
-        body.productCode,
-        body.productName,
-        body.category ?? "General",
-        body.unit ?? "pcs",
-        Number(body.price ?? 0),
-        Number(body.taxOrDiscount ?? 0),
-        body.status ?? "active",
+        body.productCode ?? null,
+        body.productName ?? null,
+        body.company !== undefined ? (String(body.company).trim() || "Other") : null,
+        body.category ?? null,
+        body.unit ?? null,
+        body.price !== undefined ? Number(body.price) : null,
+        body.taxOrDiscount !== undefined ? Number(body.taxOrDiscount) : null,
+        body.status ?? null,
+        body.imageUrl !== undefined,
+        body.imageUrl ? String(body.imageUrl).trim() : null,
         id,
       ],
     );

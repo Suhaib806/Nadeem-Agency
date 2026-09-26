@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
             continue;
           }
           const offset = params.length;
-          values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`);
+          values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10})`);
           params.push(
             code,
             name,
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
             row.phone ?? "",
             row.address ?? "",
             row.city ?? "",
+            String(row.area ?? "General").trim() || "General",
             row.creditLimit ?? row.credit_limit ?? 0,
             row.status ?? "active",
             row.notes ?? null,
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         }
         if (values.length > 0) {
           const res = await pool.query(
-            `INSERT INTO shops (shop_code, shop_name, owner_name, phone, address, city, credit_limit, status, notes)
+            `INSERT INTO shops (shop_code, shop_name, owner_name, phone, address, city, area, credit_limit, status, notes)
              VALUES ${values.join(", ")}
              ON CONFLICT (shop_code) DO NOTHING
              RETURNING id`,
@@ -72,10 +73,11 @@ export async function POST(req: NextRequest) {
             continue;
           }
           const offset = params.length;
-          values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`);
+          values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`);
           params.push(
             code,
             name,
+            row.company ? String(row.company).trim() : "Other",
             row.category ?? "General",
             row.unit ?? "pcs",
             row.price ?? 0,
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
         }
         if (values.length > 0) {
           const res = await pool.query(
-            `INSERT INTO products (product_code, product_name, category, unit, price, tax_or_discount, status)
+            `INSERT INTO products (product_code, product_name, company, category, unit, price, tax_or_discount, status)
              VALUES ${values.join(", ")}
              ON CONFLICT (product_code) DO NOTHING
              RETURNING id`,

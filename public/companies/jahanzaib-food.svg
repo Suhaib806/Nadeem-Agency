@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="jzGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <filter id="shadowJz" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#075985" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#jzGrad)" filter="url(#shadowJz)"/>
+  <!-- Pure dairy droplet & stars motif -->
+  <path d="M100 46 C116 70 134 94 134 110 C134 128 119 140 100 140 C81 140 66 128 66 110 C66 94 84 70 100 46 Z" fill="#ffffff"/>
+  <path d="M96 82 C105 92 110 100 110 112 C110 120 102 126 95 126" stroke="#0284c7" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Star accents -->
+  <polygon points="60,65 63,73 71,73 65,78 67,86 60,81 53,86 55,78 49,73 57,73" fill="#38bdf8"/>
+  <polygon points="140,65 143,73 151,73 145,78 147,86 140,81 133,86 135,78 129,73 137,73" fill="#38bdf8"/>
+  <!-- Text JAHANZAIB FOOD -->
+  <rect x="18" y="146" width="164" height="34" rx="10" fill="#082f49" opacity="0.9"/>
+  <text x="100" y="168" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="900" fill="#bae6fd" text-anchor="middle" letter-spacing="1">JAHANZAIB FOOD</text>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="otherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+    <filter id="shadowOther" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#otherGrad)" filter="url(#shadowOther)"/>
+  <!-- Shopping Basket / Variety Box -->
+  <path d="M60 90 L140 90 L130 134 L70 134 Z" fill="#e2e8f0"/>
+  <path d="M72 90 L85 64 M128 90 L115 64" stroke="#e2e8f0" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="90" cy="112" r="8" fill="#38bdf8"/>
+  <circle cx="110" cy="112" r="8" fill="#f59e0b"/>
+  <!-- Text GENERAL / OTHER -->
+  <rect x="25" y="146" width="150" height="34" rx="10" fill="#0f172a" opacity="0.9"/>
+  <text x="100" y="168" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="900" fill="#f1f5f9" text-anchor="middle" letter-spacing="1.5">OTHER / GENERAL</text>
+</svg>

@@ -42,6 +42,7 @@ export const shopsTable = pgTable(
     phone: text("phone").notNull().default(""),
     address: text("address").notNull().default(""),
     city: text("city").notNull().default(""),
+    area: text("area").notNull().default("General"),
     assignedOrderBookerId: integer("assigned_order_booker_id"),
     creditLimit: numeric("credit_limit", { precision: 12, scale: 2 }).$type<number>().notNull().default(0),
     status: text("status").notNull().default("active"),
@@ -52,6 +53,7 @@ export const shopsTable = pgTable(
   (table) => ({
     shopCodeUnique: uniqueIndex("shops_shop_code_unique").on(table.shopCode),
     assignedBookerIdx: index("idx_shops_assigned_booker").on(table.assignedOrderBookerId),
+    areaIdx: index("idx_shops_area").on(table.area),
     statusIdx: index("idx_shops_status").on(table.status),
   }),
 );
@@ -62,16 +64,19 @@ export const productsTable = pgTable(
     id: serial("id").primaryKey(),
     productCode: text("product_code").notNull(),
     productName: text("product_name").notNull(),
+    company: text("company").notNull().default("Other"),
     category: text("category").notNull().default("General"),
     unit: text("unit").notNull().default("pcs"),
     price: numeric("price", { precision: 12, scale: 2 }).$type<number>().notNull().default(0),
     taxOrDiscount: numeric("tax_or_discount", { precision: 8, scale: 2 }).$type<number>().notNull().default(0),
     status: text("status").notNull().default("active"),
+    imageUrl: text("image_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     productCodeUnique: uniqueIndex("products_product_code_unique").on(table.productCode),
+    companyIdx: index("idx_products_company").on(table.company),
     statusIdx: index("idx_products_status").on(table.status),
   }),
 );

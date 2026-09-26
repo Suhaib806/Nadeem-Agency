@@ -19,6 +19,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { User } from "@/types";
 import { apiFetch } from "@/lib/api-client";
 import logo from "@/assets/logo.png";
@@ -37,23 +38,28 @@ const bookerNav = [
   { href: "/booker/today", label: "Today", icon: CalendarDays },
   { href: "/booker/new-order", label: "New order", icon: Plus },
   { href: "/booker/orders", label: "My orders", icon: ClipboardList },
+  { href: "/booker/export", label: "Export orders", icon: FileSpreadsheet },
 ];
 
 export function Shell({ children, user }: { children: React.ReactNode; user: User }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const items = user.role === "admin" ? adminNav : bookerNav;
 
   const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
-      router.push("/");
-      router.refresh();
     } catch (err) {
       console.error("Logout failed:", err);
-      router.push("/");
+    } finally {
+      queryClient.clear();
+      window.location.href = "/";
     }
   };
 

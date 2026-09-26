@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="masterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1e40af" />
+    </linearGradient>
+    <filter id="shadowMaster" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#1e3a8a" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#masterGrad)" filter="url(#shadowMaster)"/>
+  <!-- Crown / Crest emblem -->
+  <path d="M60 115 L66 75 L86 92 L100 68 L114 92 L134 75 L140 115 Z" fill="#facc15" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="66" cy="72" r="5" fill="#ffffff"/>
+  <circle cx="100" cy="65" r="6" fill="#ffffff"/>
+  <circle cx="134" cy="72" r="5" fill="#ffffff"/>
+  <rect x="58" y="117" width="84" height="8" rx="4" fill="#ffffff"/>
+  <!-- Text MASTER FOOD -->
+  <rect x="25" y="146" width="150" height="34" rx="10" fill="#172554" opacity="0.9"/>
+  <text x="100" y="168" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="900" fill="#bfdbfe" text-anchor="middle" letter-spacing="1.5">MASTER FOOD</text>
+</svg>

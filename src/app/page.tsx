@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import logo from "@/assets/logo.png";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ export default function LoginPage() {
     apiFetch("/api/auth/me")
       .then((user) => {
         if (user && user.role) {
-          router.replace(user.role === "admin" ? "/admin/dashboard" : "/booker/today");
+          window.location.href = user.role === "admin" ? "/admin/dashboard" : "/booker/today";
         } else {
           setCheckingAuth(false);
         }
@@ -30,7 +32,7 @@ export default function LoginPage() {
       .catch(() => {
         setCheckingAuth(false);
       });
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +45,9 @@ export default function LoginPage() {
       });
 
       if (res.user) {
-        router.push(res.user.role === "admin" ? "/admin/dashboard" : "/booker/today");
+        queryClient.clear();
+        queryClient.setQueryData(["current-user"], res.user);
+        window.location.href = res.user.role === "admin" ? "/admin/dashboard" : "/booker/today";
       }
     } catch (err: any) {
       setError(err.message || "Sign in failed. Check your email and password.");

@@ -3,12 +3,14 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
+import { Button } from "@/components/ui/Button";
 import { PageHead } from "@/components/ui/Metric";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/ui/StateBlocks";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { ExportModal } from "@/components/export/ExportModal";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money } from "@/lib/utils";
@@ -18,6 +20,7 @@ export default function BookerOrdersPage() {
   const { data: user, isLoading: userLoading } = useCurrentUser("order_booker");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [showExport, setShowExport] = useState(false);
 
   const ordersQuery = useQuery<{ items: Order[]; total: number }>({
     queryKey: ["booker-orders", search, status],
@@ -49,12 +52,21 @@ export default function BookerOrdersPage() {
         title="My submitted orders"
         description="All orders you have booked and submitted from your retail route visits."
         action={
-          <Link
-            href="/booker/new-order"
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white hover:bg-[#d84315] transition"
-          >
-            <Plus size={16} /> Book new order
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowExport(true)}
+              className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
+            >
+              <Download size={16} /> Export
+            </Button>
+            <Link
+              href="/booker/new-order"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white hover:bg-[#d84315] transition"
+            >
+              <Plus size={16} /> Book new order
+            </Link>
+          </div>
         }
       />
 
@@ -121,6 +133,15 @@ export default function BookerOrdersPage() {
           ))}
         </div>
       )}
+
+      <ExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        user={user}
+        initialFilters={{
+          status,
+        }}
+      />
     </Shell>
   );
 }

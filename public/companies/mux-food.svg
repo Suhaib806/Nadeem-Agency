@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="muxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <filter id="shadowMux" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#064e3b" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#muxGrad)" filter="url(#shadowMux)"/>
+  <circle cx="100" cy="90" r="54" fill="#ffffff" opacity="0.15"/>
+  <!-- Modern M Monogram -->
+  <path d="M62 124 L62 66 L86 100 L100 82 L114 100 L138 66 L138 124" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Leaf accent -->
+  <path d="M125 58 C135 48 148 50 148 62 C148 72 135 72 125 58 Z" fill="#fbbf24"/>
+  <!-- Text MUX FOOD -->
+  <rect x="30" y="146" width="140" height="34" rx="10" fill="#064e3b" opacity="0.9"/>
+  <text x="100" y="168" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="900" fill="#a7f3d0" text-anchor="middle" letter-spacing="2">MUX FOOD</text>
+</svg>
