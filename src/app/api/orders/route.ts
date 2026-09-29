@@ -14,52 +14,82 @@ export async function GET(req: NextRequest) {
 
   const user = auth.user;
   const { searchParams } = new URL(req.url);
-  const page = Number(searchParams.get("page") || 1);
-  const pageSize = Number(searchParams.get("pageSize") || 50);
+  const page = Math.max(1, Number(searchParams.get("page") || 1));
+  const pageSize = Math.min(200, Math.max(1, Number(searchParams.get("pageSize") || 50)));
   const search = String(searchParams.get("search") || "").trim();
   const status = searchParams.get("status");
   const orderBookerId = searchParams.get("orderBookerId");
 
-  const params: unknown[] = [pageSize, (page - 1) * pageSize];
-  const filters = ["1=1"];
+  const baseParams: unknown[] = [];
+  const baseFilters = ["1=1"];
 
   if (user.role === "order_booker") {
-    params.push(user.id);
-    filters.push(`o.order_booker_id = $${params.length}`);
+    baseParams.push(user.id);
+    baseFilters.push(`o.order_booker_id = $${baseParams.length}`);
   } else if (orderBookerId) {
-    params.push(Number(orderBookerId));
-    filters.push(`o.order_booker_id = $${params.length}`);
+    baseParams.push(Number(orderBookerId));
+    baseFilters.push(`o.order_booker_id = $${baseParams.length}`);
   }
 
   if (search) {
-    params.push(`%${search}%`);
-    filters.push(`(o.order_number ILIKE $${params.length} OR s.shop_name ILIKE $${params.length} OR s.shop_code ILIKE $${params.length})`);
-  }
-  if (status) {
-    params.push(status);
-    filters.push(`o.status = $${params.length}`);
+    baseParams.push(`%${search}%`);
+    baseFilters.push(`(o.order_number ILIKE $${baseParams.length} OR s.shop_name ILIKE $${baseParams.length} OR s.shop_code ILIKE $${baseParams.length})`);
   }
 
-  const where = filters.join(" AND ");
+  const baseWhere = baseFilters.join(" AND ");
+
+  const itemParams = [...baseParams];
+  const itemFilters = [...baseFilters];
+
+  if (status) {
+    itemParams.push(status);
+    itemFilters.push(`o.status = $${itemParams.length}`);
+  }
+
+  const itemWhere = itemFilters.join(" AND ");
+  itemParams.push(pageSize);
+  const limitIdx = itemParams.length;
+  itemParams.push((page - 1) * pageSize);
+  const offsetIdx = itemParams.length;
 
   try {
-    const items = await pool.query(
-      `SELECT o.id, o.order_number, s.shop_name, s.shop_code, u.name AS order_booker_name,
-              o.order_date, o.order_time, o.grand_total, o.status,
-              COUNT(*) OVER() AS total_count
-       FROM orders o
-       JOIN shops s ON s.id = o.shop_id
-       JOIN users u ON u.id = o.order_booker_id
-       WHERE ${where}
-       ORDER BY o.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      params,
-    );
+    const [itemsRes, countsRes] = await Promise.all([
+      pool.query(
+        `SELECT o.id, o.order_number, s.shop_name, s.shop_code, u.name AS order_booker_name,
+                o.order_date, o.order_time, o.grand_total, o.status
+         FROM orders o
+         JOIN shops s ON s.id = o.shop_id
+         JOIN users u ON u.id = o.order_booker_id
+         WHERE ${itemWhere}
+         ORDER BY o.created_at DESC
+         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        itemParams,
+      ),
+      pool.query<{ all_count: string; pending_count: string; submitted_count: string; cancelled_count: string }>(
+        `SELECT
+           COUNT(*)::text AS all_count,
+           COUNT(*) FILTER (WHERE o.status = 'pending')::text AS pending_count,
+           COUNT(*) FILTER (WHERE o.status = 'submitted')::text AS submitted_count,
+           COUNT(*) FILTER (WHERE o.status = 'cancelled')::text AS cancelled_count
+         FROM orders o
+         ${search ? "JOIN shops s ON s.id = o.shop_id" : ""}
+         WHERE ${baseWhere}`,
+        baseParams,
+      ),
+    ]);
 
-    const total = items.rows.length > 0 ? Number(items.rows[0].total_count) : 0;
+    const countsRow = countsRes.rows[0];
+    const counts = {
+      all: Number(countsRow?.all_count || 0),
+      pending: Number(countsRow?.pending_count || 0),
+      submitted: Number(countsRow?.submitted_count || 0),
+      cancelled: Number(countsRow?.cancelled_count || 0),
+    };
+
+    const total = status ? (counts as Record<string, number>)[status] ?? itemsRes.rows.length : counts.all;
 
     return NextResponse.json({
-      items: items.rows.map((row) => ({
+      items: itemsRes.rows.map((row) => ({
         id: Number(row.id),
         orderNumber: String(row.order_number),
         shopName: String(row.shop_name),
@@ -71,6 +101,7 @@ export async function GET(req: NextRequest) {
         status: String(row.status),
       })),
       total,
+      counts,
       page,
       pageSize,
     });
@@ -110,10 +141,11 @@ export async function POST(req: NextRequest) {
       const orderNumber = `ORD-${String(Number(seq.rows[0].next)).padStart(6, "0")}`;
       const timeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
+      const initialStatus = body.status === "submitted" ? "submitted" : "pending";
       const order = await client.query<{ id: number }>(
         `INSERT INTO orders (order_number, shop_id, order_booker_id, order_date, order_time, subtotal, discount, tax, grand_total, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'submitted') RETURNING id`,
-        [orderNumber, Number(shopId), orderBookerId, today(), timeStr, subtotal, discount, tax, grandTotal],
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+        [orderNumber, Number(shopId), orderBookerId, today(), timeStr, subtotal, discount, tax, grandTotal, initialStatus],
       );
       const orderId = order.rows[0].id;
 
@@ -142,7 +174,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      await client.query("INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, 'Order submitted', $2)", [orderId, user.id]);
+      const auditAction = initialStatus === "pending" ? "Order booked (pending payment)" : "Order booked and submitted";
+      await client.query("INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, $2, $3)", [orderId, auditAction, user.id]);
       await client.query("COMMIT");
 
       const created = await buildOrder(orderId);

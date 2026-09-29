@@ -70,6 +70,10 @@ export interface Order {
   shopId: number;
   shopName: string;
   shopCode: string;
+  shopOwnerName?: string;
+  shopPhone?: string;
+  shopAddress?: string;
+  shopArea?: string;
   orderBookerId: number;
   orderBookerName: string;
   orderDate: string;

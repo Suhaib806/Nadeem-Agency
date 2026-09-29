@@ -9,9 +9,9 @@ export function useCurrentUser(requiredRole?: "admin" | "order_booker") {
   const query = useQuery<User>({
     queryKey: ["current-user"],
     queryFn: () => apiFetch("/api/auth/me"),
-    retry: false,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 1000 * 60 * 5, // Cache user auth for 5 minutes for instant page switches
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {

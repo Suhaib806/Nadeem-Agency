@@ -6,8 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function money(value: unknown = 0): string {
-  const num = Number(value ?? 0);
-  return `Rs ${num.toLocaleString("en-PK", { maximumFractionDigits: 0 })}`;
+  const num = Math.round(Number(value ?? 0));
+  const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `Rs ${formatted}`;
 }
 
 export const formatRs = money;

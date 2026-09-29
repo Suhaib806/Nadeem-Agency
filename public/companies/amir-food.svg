@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="amirGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <filter id="shadowAmir" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#78350f" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#amirGrad)" filter="url(#shadowAmir)"/>
+  <circle cx="100" cy="100" r="76" fill="none" stroke="#fef3c7" stroke-width="3" stroke-dasharray="8 6" opacity="0.6"/>
+  <!-- Leaf / Grain motif -->
+  <path d="M100 42 C115 65 145 75 145 95 C145 120 125 138 100 138 C75 138 55 120 55 95 C55 75 85 65 100 42 Z" fill="#ffffff" opacity="0.95"/>
+  <path d="M100 55 L100 135 M100 80 Q118 70 128 85 M100 95 Q82 85 72 100 M100 110 Q118 102 125 116" stroke="#b45309" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Text AMIR FOOD -->
+  <rect x="25" y="146" width="150" height="34" rx="10" fill="#78350f" opacity="0.85"/>
+  <text x="100" y="168" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="900" fill="#fef3c7" text-anchor="middle" letter-spacing="1.5">AMIR FOOD</text>
+</svg>

@@ -9,6 +9,24 @@ export interface CompanyBrand {
 }
 
 export const KNOWN_COMPANIES: Record<string, CompanyBrand> = {
+  "J.P": {
+    name: "J.P",
+    logo: "/companies/jp.svg",
+    badgeBg: "bg-sky-500/10",
+    badgeText: "text-sky-700",
+    borderHover: "hover:border-sky-500",
+    accent: "#0596ff",
+    description: "Premium Spices, Teas & Staple Grocery",
+  },
+  "Amir Food": {
+    name: "Amir Food",
+    logo: "/companies/amir-food.svg",
+    badgeBg: "bg-amber-500/10",
+    badgeText: "text-amber-700",
+    borderHover: "hover:border-amber-500",
+    accent: "#d97706",
+    description: "Flour, Grains & Cooking Staples",
+  },
   "JP Amir Food": {
     name: "JP Amir Food",
     logo: "/companies/jp-amir-food.svg",
@@ -55,6 +73,24 @@ export const KNOWN_COMPANIES: Record<string, CompanyBrand> = {
     description: "Beverages, General & Unassigned Products",
   },
 };
+
+export const CORE_COMPANIES = [
+  "J.P",
+  "Amir Food",
+  "Mux Food",
+  "Master Food",
+  "Jahanzaib Food",
+];
+
+export const PRESET_COMPANIES = [
+  "J.P",
+  "Amir Food",
+  "JP Amir Food",
+  "Mux Food",
+  "Master Food",
+  "Jahanzaib Food",
+  "Other",
+];
 
 export function getCompanyBrand(companyName?: string | null): CompanyBrand {
   const norm = (companyName || "Other").trim();

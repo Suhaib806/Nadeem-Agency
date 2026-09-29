@@ -17,6 +17,37 @@ export async function GET(req: NextRequest) {
   const scopeParams = user.role === "order_booker" ? [date, user.id] : [date];
 
   try {
+    if (user.role === "order_booker") {
+      const summary = await pool.query<{
+        total_orders: string;
+        shops_visited: string;
+        total_sales: string;
+        pending_orders: string;
+        cancelled_orders: string;
+      }>(
+        `SELECT COUNT(*) FILTER (WHERE status <> 'cancelled')::text AS total_orders,
+                COUNT(DISTINCT shop_id) FILTER (WHERE status <> 'cancelled')::text AS shops_visited,
+                COALESCE(SUM(grand_total) FILTER (WHERE status <> 'cancelled'), 0)::text AS total_sales,
+                COUNT(*) FILTER (WHERE status = 'pending')::text AS pending_orders,
+                COUNT(*) FILTER (WHERE status = 'cancelled')::text AS cancelled_orders
+         FROM orders WHERE order_date = $1 AND order_booker_id = $2`,
+        [date, user.id],
+      );
+
+      const row = summary.rows[0];
+      return NextResponse.json({
+        date,
+        totalOrders: Number(row?.total_orders ?? 0),
+        shopsVisited: Number(row?.shops_visited ?? 0),
+        totalSales: moneyRaw(row?.total_sales),
+        activeOrderBookers: 1,
+        pendingOrders: Number(row?.pending_orders ?? 0),
+        cancelledOrders: Number(row?.cancelled_orders ?? 0),
+        salesByBooker: [],
+      });
+    }
+
+    // Admin dashboard: run all 3 in parallel using optimized indexes
     const [summary, bookers, performance] = await Promise.all([
       pool.query<{
         total_orders: string;
@@ -30,8 +61,8 @@ export async function GET(req: NextRequest) {
                 COALESCE(SUM(grand_total) FILTER (WHERE status <> 'cancelled'), 0)::text AS total_sales,
                 COUNT(*) FILTER (WHERE status = 'pending')::text AS pending_orders,
                 COUNT(*) FILTER (WHERE status = 'cancelled')::text AS cancelled_orders
-         FROM orders WHERE order_date = $1${scope}`,
-        scopeParams,
+         FROM orders WHERE order_date = $1`,
+        [date],
       ),
       pool.query<{ count: string }>(
         "SELECT COUNT(*)::text AS count FROM users WHERE role = 'order_booker' AND active = true",
@@ -41,9 +72,9 @@ export async function GET(req: NextRequest) {
                 COALESCE(SUM(o.grand_total), 0)::text AS sales,
                 COUNT(DISTINCT o.shop_id)::text AS shops_visited
          FROM users u LEFT JOIN orders o ON o.order_booker_id = u.id AND o.order_date = $1 AND o.status <> 'cancelled'
-         WHERE u.role = 'order_booker' AND u.active = true${user.role === "order_booker" ? " AND u.id = $2" : ""}
+         WHERE u.role = 'order_booker' AND u.active = true
          GROUP BY u.id, u.name ORDER BY SUM(o.grand_total) DESC NULLS LAST`,
-        user.role === "order_booker" ? [date, user.id] : [date],
+        [date],
       ),
     ]);
 

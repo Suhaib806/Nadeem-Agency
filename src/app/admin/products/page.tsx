@@ -29,16 +29,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money } from "@/lib/utils";
 import { Product } from "@/types";
-import { getCompanyBrand } from "@/lib/companies";
+import { getCompanyBrand, CORE_COMPANIES, PRESET_COMPANIES } from "@/lib/companies";
 import { ProductDetailModal } from "@/components/products/ProductDetailModal";
-
-const PRESET_COMPANIES = [
-  "JP Amir Food",
-  "Mux Food",
-  "Master Food",
-  "Jahanzaib Food",
-  "Other",
-];
 
 function ProductForm({
   product,
@@ -227,6 +219,8 @@ function ProductForm({
             }}
             className="h-11 w-full rounded-lg border border-[#ded6c3] bg-white px-3 text-sm font-medium text-[#1e3441] outline-none transition focus:border-[#25897c]"
           >
+            <option value="J.P">J.P</option>
+            <option value="Amir Food">Amir Food</option>
             <option value="JP Amir Food">JP Amir Food</option>
             <option value="Mux Food">Mux Food</option>
             <option value="Master Food">Master Food</option>
@@ -352,12 +346,7 @@ export default function ProductsPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const coreCompanies = [
-    "JP Amir Food",
-    "Mux Food",
-    "Master Food",
-    "Jahanzaib Food",
-  ];
+  const coreCompanies = CORE_COMPANIES;
 
   const extraCompanies = Array.from(
     new Set(

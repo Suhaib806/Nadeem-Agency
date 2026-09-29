@@ -35,12 +35,14 @@ export default function NewOrderPage() {
     queryKey: ["booker-shops"],
     queryFn: () => apiFetch("/api/shops?status=active&pageSize=500"),
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 min cache for instant loading
   });
 
   const productsQuery = useQuery<{ items: Product[] }>({
     queryKey: ["booker-products"],
     queryFn: () => apiFetch("/api/products?status=active&pageSize=200"),
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 min cache for instant loading
   });
 
   const createMutation = useMutation({

@@ -3,7 +3,7 @@ import { moneyRaw } from "./utils";
 
 export async function buildOrder(id: number) {
   const result = await pool.query(
-    `SELECT o.*, s.shop_name, s.shop_code, u.name AS order_booker_name,
+    `SELECT o.*, s.shop_name, s.shop_code, s.owner_name, s.phone, s.address, s.area, u.name AS order_booker_name,
        COALESCE((
          SELECT json_agg(json_build_object(
            'id', oi.id,
@@ -44,6 +44,10 @@ export async function buildOrder(id: number) {
     shopId: Number(row.shop_id),
     shopName: String(row.shop_name),
     shopCode: String(row.shop_code),
+    shopOwnerName: String(row.owner_name || ""),
+    shopPhone: String(row.phone || ""),
+    shopAddress: String(row.address || ""),
+    shopArea: String(row.area || ""),
     orderBookerId: Number(row.order_booker_id),
     orderBookerName: String(row.order_booker_name),
     orderDate: String(row.order_date),

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req, "admin");
+  const auth = await requireAuth(req);
   if (!auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -40,7 +40,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!id) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
 
   try {
+    const existingRes = await pool.query<{ id: number; order_booker_id: number; status: string }>(
+      "SELECT id, order_booker_id, status FROM orders WHERE id = $1",
+      [id],
+    );
+    const existing = existingRes.rows[0];
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (auth.user.role === "order_booker" && existing.order_booker_id !== auth.user.id) {
+      return NextResponse.json({ error: "You do not have access to this order" }, { status: 403 });
+    }
+
     const body = await req.json();
+
+    const validStatuses = ["pending", "submitted", "cancelled"];
+    if (body.status && !validStatuses.includes(body.status)) {
+      return NextResponse.json(
+        { error: `Invalid status '${body.status}'. Valid statuses: ${validStatuses.join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    // Only admins can modify order items, discount, or tax
+    if (auth.user.role === "order_booker" && (body.items || body.discount !== undefined || body.tax !== undefined)) {
+      return NextResponse.json({ error: "Order bookers can only manage status" }, { status: 403 });
+    }
 
     if (body.items && Array.isArray(body.items)) {
       const items = await calculateItems(body.items);
@@ -79,14 +105,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           itemParams,
         );
       }
-    } else {
+    } else if (body.discount !== undefined || body.tax !== undefined) {
       await pool.query(
         "UPDATE orders SET discount = COALESCE($1, discount), tax = COALESCE($2, tax), status = COALESCE($3, status), grand_total = subtotal - COALESCE($1, discount) + COALESCE($2, tax), updated_at = NOW() WHERE id = $4",
         [body.discount ?? null, body.tax ?? null, body.status ?? null, id],
       );
+    } else if (body.status !== undefined) {
+      await pool.query(
+        "UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2",
+        [body.status, id],
+      );
     }
 
-    await pool.query("INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, 'Order updated', $2)", [id, auth.user.id]);
+    // Determine audit event description
+    let action = "Order updated";
+    if (body.status && body.status !== existing.status) {
+      if (body.status === "submitted") {
+        action = body.note ? `Payment received (${body.note})` : "Payment received - status marked as submitted";
+      } else if (body.status === "pending") {
+        action = body.note ? `Status set to pending (${body.note})` : "Status marked as pending";
+      } else if (body.status === "cancelled") {
+        action = body.note ? `Order cancelled (${body.note})` : "Order cancelled";
+      }
+    } else if (body.note) {
+      action = body.note;
+    }
+
+    await pool.query(
+      "INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, $2, $3)",
+      [id, action, auth.user.id],
+    );
+
     const order = await buildOrder(id);
     return NextResponse.json(order);
   } catch (error) {
@@ -96,7 +145,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req, "admin");
+  const auth = await requireAuth(req);
   if (!auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -106,6 +155,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!id) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
 
   try {
+    const existingRes = await pool.query<{ id: number; order_booker_id: number }>(
+      "SELECT id, order_booker_id FROM orders WHERE id = $1",
+      [id],
+    );
+    const existing = existingRes.rows[0];
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (auth.user.role === "order_booker" && existing.order_booker_id !== auth.user.id) {
+      return NextResponse.json({ error: "You do not have access to this order" }, { status: 403 });
+    }
+
     await pool.query("UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1", [id]);
     await pool.query("INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, 'Order cancelled', $2)", [id, auth.user.id]);
 

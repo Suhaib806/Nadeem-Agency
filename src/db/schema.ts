@@ -94,7 +94,7 @@ export const ordersTable = pgTable(
     discount: numeric("discount", { precision: 12, scale: 2 }).$type<number>().notNull().default(0),
     tax: numeric("tax", { precision: 12, scale: 2 }).$type<number>().notNull().default(0),
     grandTotal: numeric("grand_total", { precision: 12, scale: 2 }).$type<number>().notNull().default(0),
-    status: text("status").notNull().default("submitted"),
+    status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

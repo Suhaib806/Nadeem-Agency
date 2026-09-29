@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Plus } from "lucide-react";
+import { Download, Eye, Plus, Clock, CheckCircle2, XCircle, ListFilter } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
 import { PageHead } from "@/components/ui/Metric";
@@ -11,6 +11,8 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/ui/StateBlocks";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { ExportModal } from "@/components/export/ExportModal";
+import { OrderDetailModal } from "@/components/orders/OrderDetailModal";
+import { OrderStatusChanger } from "@/components/orders/OrderStatusChanger";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money } from "@/lib/utils";
@@ -21,8 +23,13 @@ export default function BookerOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [showExport, setShowExport] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
-  const ordersQuery = useQuery<{ items: Order[]; total: number }>({
+  const ordersQuery = useQuery<{
+    items: Order[];
+    total: number;
+    counts?: { all: number; pending: number; submitted: number; cancelled: number };
+  }>({
     queryKey: ["booker-orders", search, status],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -44,13 +51,24 @@ export default function BookerOrdersPage() {
   }
 
   const orders = ordersQuery.data?.items || [];
+  const counts = ordersQuery.data?.counts || {
+    all: orders.length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    submitted: orders.filter((o) => o.status === "submitted").length,
+    cancelled: orders.filter((o) => o.status === "cancelled").length,
+  };
+
+  const pendingCount = counts.pending;
+  const submittedCount = counts.submitted;
+  const cancelledCount = counts.cancelled;
+  const allCount = counts.all;
 
   return (
     <Shell user={user}>
       <PageHead
-        eyebrow="Field history"
-        title="My submitted orders"
-        description="All orders you have booked and submitted from your retail route visits."
+        eyebrow="Field history & payment tracking"
+        title="My route orders"
+        description="Review booked orders, receive payments, and manage status manually from your route visits."
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -62,7 +80,7 @@ export default function BookerOrdersPage() {
             </Button>
             <Link
               href="/booker/new-order"
-              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white hover:bg-[#d84315] transition"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e65100] px-4 text-sm font-bold text-white hover:bg-[#d84315] shadow-xs transition"
             >
               <Plus size={16} /> Book new order
             </Link>
@@ -70,18 +88,82 @@ export default function BookerOrdersPage() {
         }
       />
 
+      {/* Quick Filter Tabs */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setStatus("")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+            status === ""
+              ? "border-[#25897c] bg-[#25897c] text-white shadow-xs"
+              : "border-[#ded6c3] bg-[#fbf9f4] text-[#627784] hover:bg-[#efe9da] hover:text-[#1e3441]"
+          }`}
+        >
+          <ListFilter size={13} />
+          <span>All Orders</span>
+          <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] ${status === "" ? "bg-white/20 text-white" : "bg-[#ded6c3] text-[#1e3441]"}`}>
+            {allCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatus("pending")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+            status === "pending"
+              ? "border-[#e65100] bg-[#e65100] text-white shadow-xs"
+              : "border-[#ded6c3] bg-[#fbf9f4] text-[#a44619] hover:bg-[#efe9da]"
+          }`}
+        >
+          <Clock size={13} />
+          <span>Pending (Awaiting Payment)</span>
+          {pendingCount > 0 && (
+            <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${status === "pending" ? "bg-white/20 text-white" : "bg-[#e65100]/20 text-[#a44619]"}`}>
+              {pendingCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatus("submitted")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+            status === "submitted"
+              ? "border-[#25897c] bg-[#25897c] text-white shadow-xs"
+              : "border-[#ded6c3] bg-[#fbf9f4] text-[#25897c] hover:bg-[#efe9da]"
+          }`}
+        >
+          <CheckCircle2 size={13} />
+          <span>Submitted (Paid)</span>
+          {submittedCount > 0 && (
+            <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] ${status === "submitted" ? "bg-white/20 text-white" : "bg-[#25897c]/20 text-[#25897c]"}`}>
+              {submittedCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatus("cancelled")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+            status === "cancelled"
+              ? "border-[#c62828] bg-[#c62828] text-white shadow-xs"
+              : "border-[#ded6c3] bg-[#fbf9f4] text-[#c62828] hover:bg-[#efe9da]"
+          }`}
+        >
+          <XCircle size={13} />
+          <span>Cancelled</span>
+          {cancelledCount > 0 && (
+            <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] ${status === "cancelled" ? "bg-white/20 text-white" : "bg-[#c62828]/20 text-[#c62828]"}`}>
+              {cancelledCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-[#ded6c3] bg-[#fbf9f4] p-3 sm:flex-row">
         <SearchBar value={search} onChange={setSearch} placeholder="Search by order number or shop name" />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-11 rounded-lg border border-[#ded6c3] bg-[#fbf9f4] px-3 text-sm text-[#1e3441] outline-none focus:border-[#25897c]"
-        >
-          <option value="">All statuses</option>
-          <option value="submitted">Submitted</option>
-          <option value="pending">Pending</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
       </div>
 
       {ordersQuery.isLoading ? (
@@ -90,8 +172,12 @@ export default function BookerOrdersPage() {
         <ErrorBlock onRetry={() => ordersQuery.refetch()} />
       ) : orders.length === 0 ? (
         <EmptyBlock
-          title="No orders yet"
-          detail="Start booking at your assigned retail accounts to build your route history."
+          title="No orders found"
+          detail={
+            status === "pending"
+              ? "Great job! You have no pending payments awaiting collection."
+              : "Start booking at your assigned retail accounts to build your route history."
+          }
           action={
             <Link
               href="/booker/new-order"
@@ -106,34 +192,60 @@ export default function BookerOrdersPage() {
           {orders.map((o) => (
             <div
               key={o.id}
-              className="flex flex-col gap-3 border-b border-[#ded6c3]/60 px-4 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+              onClick={() => setSelectedOrderId(o.id)}
+              className="group flex flex-col gap-3 border-b border-[#ded6c3]/60 px-4 py-4 last:border-0 hover:bg-[#f5efe1]/40 transition cursor-pointer sm:flex-row sm:items-center sm:justify-between sm:px-5"
             >
+              {/* Left Shop & Order Info */}
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-lg bg-[#e5decb] text-xs font-bold text-[#25897c]">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#e5decb] text-xs font-bold text-[#25897c] group-hover:bg-[#25897c] group-hover:text-white transition">
                   {o.shopName?.slice(0, 2).toUpperCase()}
                 </span>
                 <div>
-                  <p className="font-bold text-[#1e3441]">{o.shopName}</p>
+                  <p className="font-bold text-[#1e3441] group-hover:text-[#25897c] transition">
+                    {o.shopName}
+                  </p>
                   <p className="text-xs text-[#627784]">
                     {o.orderNumber} · {o.shopCode}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-5 sm:justify-end">
+              {/* Right Side: Total, Date, and Status Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end sm:gap-4">
                 <div className="text-left sm:text-right">
                   <p className="text-sm font-bold text-[#1e3441]">{money(o.grandTotal)}</p>
                   <p className="text-xs text-[#627784]">
                     {o.orderDate} · {o.orderTime}
                   </p>
                 </div>
-                <StatusPill status={o.status} />
+
+                {/* Inline Status Changer with Quick Payment Receive button */}
+                <OrderStatusChanger
+                  orderId={o.id}
+                  orderNumber={o.orderNumber}
+                  currentStatus={o.status}
+                  showQuickPaymentButton={true}
+                />
+
+                {/* View Details Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedOrderId(o.id);
+                  }}
+                  title="View order details and items"
+                  className="grid size-8 place-items-center rounded-lg border border-[#ded6c3] bg-[#fbf9f4] text-[#627784] hover:bg-[#efe9da] hover:text-[#1e3441] transition"
+                >
+                  <Eye size={15} />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Export Modal */}
       <ExportModal
         isOpen={showExport}
         onClose={() => setShowExport(false)}
@@ -141,6 +253,14 @@ export default function BookerOrdersPage() {
         initialFilters={{
           status,
         }}
+      />
+
+      {/* Order Detail & Status Management Modal */}
+      <OrderDetailModal
+        orderId={selectedOrderId}
+        isOpen={!!selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
+        currentUser={user}
       />
     </Shell>
   );

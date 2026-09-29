@@ -33,9 +33,14 @@ export default function BookerTodayPage() {
   }
 
   const s = summaryQuery.data || {
+    date: today(),
     totalOrders: 0,
     shopsVisited: 0,
     totalSales: 0,
+    activeOrderBookers: 0,
+    pendingOrders: 0,
+    cancelledOrders: 0,
+    salesByBooker: [],
   };
 
   return (
@@ -67,7 +72,7 @@ export default function BookerTodayPage() {
         <Metric
           label="Orders today"
           value={s.totalOrders}
-          note="Submitted from the field"
+          note={s.pendingOrders > 0 ? `${s.pendingOrders} pending payment` : "All route orders today"}
           icon={ClipboardList}
         />
         <Metric
@@ -84,6 +89,30 @@ export default function BookerTodayPage() {
           icon={Store}
         />
       </div>
+
+      {s.pendingOrders > 0 && (
+        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-[#a44619]">
+              <ClipboardList size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                {s.pendingOrders} {s.pendingOrders === 1 ? "order is" : "orders are"} pending payment
+              </p>
+              <p className="text-xs text-amber-700">
+                Collect payments on your route and mark them as received.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/booker/orders"
+            className="inline-flex items-center justify-center rounded-lg bg-[#e65100] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#d84315] transition shadow-xs shrink-0"
+          >
+            Manage Payments & Status
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl border border-[#ded6c3] bg-[#fbf9f4] p-6 shadow-xs">
         <div className="flex items-center justify-between">

@@ -31,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
-      <body className="min-h-screen bg-[#f3efe7] text-[#1e3441] antialiased">
+    <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen bg-[#f3efe7] text-[#1e3441] antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

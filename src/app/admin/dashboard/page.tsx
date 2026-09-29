@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,6 +15,7 @@ import { Shell } from "@/components/shell/Shell";
 import { PageHead, Metric } from "@/components/ui/Metric";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/ui/StateBlocks";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { OrderDetailModal } from "@/components/orders/OrderDetailModal";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money, today } from "@/lib/utils";
@@ -22,6 +23,7 @@ import { DashboardSummary } from "@/types";
 
 export default function AdminDashboardPage() {
   const { data: user, isLoading: userLoading } = useCurrentUser("admin");
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
   const summaryQuery = useQuery<DashboardSummary>({
     queryKey: ["dashboard-summary"],
@@ -124,14 +126,17 @@ export default function AdminDashboardPage() {
               {recentQuery.data.map((o) => (
                 <div
                   key={o.id}
-                  className="flex items-center justify-between gap-3 border-b border-[#ded6c3]/60 py-3 last:border-0"
+                  onClick={() => setSelectedOrderId(o.id)}
+                  className="group flex items-center justify-between gap-3 border-b border-[#ded6c3]/60 py-3 last:border-0 hover:bg-[#f5efe1]/40 px-2 rounded-lg transition cursor-pointer"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#e5decb] text-xs font-bold text-[#25897c]">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#e5decb] text-xs font-bold text-[#25897c] group-hover:bg-[#25897c] group-hover:text-white transition">
                       {o.shopName?.slice(0, 2).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#1e3441]">{o.shopName}</p>
+                      <p className="truncate text-sm font-bold text-[#1e3441] group-hover:text-[#25897c] transition">
+                        {o.shopName}
+                      </p>
                       <p className="text-xs text-[#627784]">
                         {o.orderNumber} · {o.orderBookerName}
                       </p>
@@ -182,6 +187,13 @@ export default function AdminDashboardPage() {
           )}
         </section>
       </div>
+
+      <OrderDetailModal
+        orderId={selectedOrderId}
+        isOpen={!!selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
+        currentUser={user}
+      />
     </Shell>
   );
 }
