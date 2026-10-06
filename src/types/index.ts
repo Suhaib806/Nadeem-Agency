@@ -88,6 +88,16 @@ export interface Order {
   audit?: AuditEvent[];
 }
 
+export interface Company {
+  id: number;
+  name: string;
+  logo?: string | null;
+  description?: string | null;
+  productCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface DashboardSummary {
   date: string;
   totalOrders: number;
@@ -104,3 +114,4 @@ export interface DashboardSummary {
     shopsVisited: number;
   }>;
 }
+

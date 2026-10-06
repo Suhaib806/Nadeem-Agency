@@ -7,6 +7,7 @@ import {
   Calendar,
   CheckCircle2,
   FileSpreadsheet,
+  FileText,
   Filter,
   Store,
   User as UserIcon,
@@ -43,7 +44,8 @@ export function ExportModal({
   const [shopId, setShopId] = useState<string>(initialFilters.shopId || "");
   const [bookerId, setBookerId] = useState<string>(initialFilters.orderBookerId || "");
   const [status, setStatus] = useState<string>(initialFilters.status || "");
-  const [format, setFormat] = useState<string>("summary");
+  // Default format is PDF matching the official receipt layout
+  const [format, setFormat] = useState<string>("pdf");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +104,7 @@ export function ExportModal({
       if (shopId) params.set("shopId", shopId);
       if (user.role === "admin" && bookerId) params.set("orderBookerId", bookerId);
       if (status) params.set("status", status);
-      if (format) params.set("format", format);
+      params.set("format", format);
 
       const res = await fetch(`/api/reports/export?${params.toString()}`);
       if (!res.ok) {
@@ -111,7 +113,7 @@ export function ExportModal({
       }
 
       const blob = await res.blob();
-      let filename = `nadeem-orders-${today()}.xlsx`;
+      let filename = format === "pdf" ? `nadeem-invoices-${today()}.pdf` : `nadeem-orders-${today()}.xlsx`;
       const disposition = res.headers.get("content-disposition");
       if (disposition && disposition.includes("filename=")) {
         const match = disposition.match(/filename=["']?([^"';]+)["']?/);
@@ -137,23 +139,23 @@ export function ExportModal({
 
   return (
     <Modal
-      title={user.role === "admin" ? "Export Agency Orders" : "Export My Orders"}
+      title={user.role === "admin" ? "Export Orders & Invoices" : "Export My Orders"}
       onClose={onClose}
     >
       <div className="space-y-6">
         {/* Banner / Info */}
         <div className="flex items-center gap-3 rounded-xl border border-[#ded6c3] bg-[#e5decb]/40 p-4">
           <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#25897c] text-white">
-            <FileSpreadsheet size={20} />
+            {format === "pdf" ? <FileText size={20} /> : <FileSpreadsheet size={20} />}
           </div>
           <div>
             <p className="text-sm font-bold text-[#1e3441]">
-              Formatted Excel Workbook (.xlsx)
+              {format === "pdf" ? "Official Invoice & Receipt PDF (.pdf)" : "Excel Workbook (.xlsx)"}
             </p>
             <p className="text-xs text-[#627784]">
-              {user.role === "order_booker"
-                ? "Exports all line items and order totals booked by you. Filter by any date range or retail account."
-                : "Exports comprehensive order book records across active routes with line item snapshots and financial totals."}
+              {format === "pdf"
+                ? "Generates printable PDF invoices matching your official receipt layout with logo, address, customer charge-to, delivery note, line items, and balances."
+                : "Exports spreadsheet tables with line item snapshots and commercial totals."}
             </p>
           </div>
         </div>
@@ -271,15 +273,14 @@ export function ExportModal({
           </SelectField>
         </div>
 
-        {/* Workbook Layout */}
+        {/* Export File Format */}
         <SelectField
-          label="Excel Workbook Layout"
+          label="Export Format"
           value={format}
           onChange={(e) => setFormat(e.target.value)}
         >
-          <option value="summary">Orders Summary (1 row per order — Products grouped)</option>
-          <option value="both">Complete Workbook (Orders summary + Line Items Detail sheets)</option>
-          <option value="items">Line Items Breakdown (Product rows only)</option>
+          <option value="pdf">Official PDF Invoices & Receipts (Recommended - Given Layout)</option>
+          <option value="excel">Excel Workbook (.xlsx - Orders Summary)</option>
         </SelectField>
 
         {/* Messages */}
@@ -293,7 +294,7 @@ export function ExportModal({
           <div className="flex items-center gap-2 rounded-lg bg-[#25897c]/15 p-3 text-sm font-semibold text-[#25897c]">
             <CheckCircle2 size={18} />
             <span>
-              Export downloaded: <strong>{downloadedFile}</strong>
+              Downloaded successfully: <strong>{downloadedFile}</strong>
             </span>
           </div>
         )}
@@ -307,13 +308,14 @@ export function ExportModal({
             type="button"
             onClick={handleDownload}
             disabled={loading}
-            className="min-w-[160px]"
+            className="min-w-[170px]"
           >
             {loading ? (
-              "Generating .xlsx..."
+              format === "pdf" ? "Generating PDF..." : "Generating Excel..."
             ) : (
               <>
-                <ArrowDownToLine size={16} /> Download Excel
+                <ArrowDownToLine size={16} />
+                {format === "pdf" ? "Download PDF Receipts" : "Download Excel"}
               </>
             )}
           </Button>

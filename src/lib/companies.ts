@@ -63,6 +63,24 @@ export const KNOWN_COMPANIES: Record<string, CompanyBrand> = {
     accent: "#0284c7",
     description: "Dairy, Milk & Fresh Nutrition",
   },
+  "Bilal Food": {
+    name: "Bilal Food",
+    logo: "/companies/bilal-food.png",
+    badgeBg: "bg-purple-500/10",
+    badgeText: "text-purple-700",
+    borderHover: "hover:border-purple-500",
+    accent: "#7c3aed",
+    description: "Confectionery, Candies, Chews & Bubbles",
+  },
+  "Bilal Foods": {
+    name: "Bilal Food",
+    logo: "/companies/bilal-food.png",
+    badgeBg: "bg-purple-500/10",
+    badgeText: "text-purple-700",
+    borderHover: "hover:border-purple-500",
+    accent: "#7c3aed",
+    description: "Confectionery, Candies, Chews & Bubbles",
+  },
   "Other": {
     name: "Other",
     logo: "/companies/other.svg",
@@ -80,6 +98,7 @@ export const CORE_COMPANIES = [
   "Mux Food",
   "Master Food",
   "Jahanzaib Food",
+  "Bilal Food",
 ];
 
 export const PRESET_COMPANIES = [
@@ -89,18 +108,26 @@ export const PRESET_COMPANIES = [
   "Mux Food",
   "Master Food",
   "Jahanzaib Food",
+  "Bilal Food",
   "Other",
 ];
 
-export function getCompanyBrand(companyName?: string | null): CompanyBrand {
+export function getCompanyBrand(
+  companyName?: string | null,
+  customLogo?: string | null,
+): CompanyBrand {
   const norm = (companyName || "Other").trim();
   if (KNOWN_COMPANIES[norm]) {
-    return KNOWN_COMPANIES[norm];
+    const brand = { ...KNOWN_COMPANIES[norm] };
+    if (customLogo) {
+      brand.logo = customLogo;
+    }
+    return brand;
   }
   // Fallback for custom company
   return {
     name: norm || "Other",
-    logo: "/companies/other.svg",
+    logo: customLogo || "/companies/other.svg",
     badgeBg: "bg-[#25897c]/10",
     badgeText: "text-[#25897c]",
     borderHover: "hover:border-[#25897c]",

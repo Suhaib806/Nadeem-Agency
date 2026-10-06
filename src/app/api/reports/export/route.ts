@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { pool } from "@/db";
 import { requireAuth } from "@/lib/auth";
 import { today } from "@/lib/utils";
+import { generateReceiptPdf, ReceiptOrderData } from "@/lib/pdf-receipt";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,14 @@ export async function GET(req: NextRequest) {
 
   const user = auth.user;
   const { searchParams } = new URL(req.url);
+  const orderId = searchParams.get("orderId");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const shopId = searchParams.get("shopId");
   const orderBookerId = searchParams.get("orderBookerId");
   const status = searchParams.get("status");
-  const format = searchParams.get("format") || "summary"; // 'summary' (default 1 row per order) | 'both' | 'items'
+  // Default export format is now PDF matching the final receipt layout!
+  const format = searchParams.get("format") || "pdf";
 
   const params: unknown[] = [];
   const filters = ["1=1"];
@@ -31,6 +34,11 @@ export async function GET(req: NextRequest) {
   } else if (orderBookerId) {
     params.push(Number(orderBookerId));
     filters.push(`o.order_booker_id = $${params.length}`);
+  }
+
+  if (orderId) {
+    params.push(Number(orderId));
+    filters.push(`o.id = $${params.length}`);
   }
 
   if (from) {
@@ -51,9 +59,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1 row per order with line items aggregated
+    // 1 row per order with full shop details and line items aggregated
     const result = await pool.query(
-      `SELECT o.id, o.order_number, o.order_date, o.order_time, s.shop_code, s.shop_name, s.area, s.city, u.name AS order_booker,
+      `SELECT o.id, o.order_number, o.order_date, o.order_time,
+              s.shop_code, s.shop_name, s.owner_name, s.phone, s.address, s.area, s.city, s.credit_limit,
+              u.name AS order_booker,
               o.subtotal, o.discount, o.tax, o.grand_total, o.status,
               COALESCE((
                 SELECT json_agg(json_build_object(
@@ -78,207 +88,150 @@ export async function GET(req: NextRequest) {
       params,
     );
 
+    const orders = result.rows;
+    if (orders.length === 0) {
+      return NextResponse.json({ error: "No orders found matching the filter criteria" }, { status: 404 });
+    }
+
+    function toDateStr(val: any): string {
+      if (!val) return "";
+      if (val instanceof Date) {
+        const y = val.getFullYear();
+        const m = String(val.getMonth() + 1).padStart(2, "0");
+        const d = String(val.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+      const str = String(val).trim();
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+      return str.slice(0, 10);
+    }
+
+    // ========================================================
+    // FORMAT: PDF (Default - Final Receipt Design)
+    // ========================================================
+    if (format !== "excel" && format !== "xlsx" && format !== "csv") {
+      const receiptOrders: ReceiptOrderData[] = orders.map((row) => ({
+        id: Number(row.id),
+        orderNumber: String(row.order_number || ""),
+        orderDate: toDateStr(row.order_date),
+        orderTime: String(row.order_time || ""),
+        shopCode: String(row.shop_code || ""),
+        shopName: String(row.shop_name || ""),
+        ownerName: String(row.owner_name || ""),
+        phone: String(row.phone || ""),
+        address: String(row.address || ""),
+        area: String(row.area || "General"),
+        city: String(row.city || "Bahawalpur"),
+        creditLimit: Number(row.credit_limit || 0),
+        orderBooker: String(row.order_booker || ""),
+        subtotal: Number(row.subtotal || 0),
+        discount: Number(row.discount || 0),
+        tax: Number(row.tax || 0),
+        grandTotal: Number(row.grand_total || 0),
+        status: String(row.status || ""),
+        items: Array.isArray(row.items)
+          ? row.items.map((it: any) => ({
+              productCode: String(it.productCode || ""),
+              productName: String(it.productName || ""),
+              unit: String(it.unit || "pcs"),
+              quantity: Number(it.quantity || 0),
+              unitPrice: Number(it.unitPrice || 0),
+              lineTotal: Number(it.lineTotal || 0),
+            }))
+          : [],
+      }));
+
+      const pdfBuffer = await generateReceiptPdf(receiptOrders);
+
+      const filename = receiptOrders.length === 1
+        ? `invoice-${receiptOrders[0].orderNumber || receiptOrders[0].id}.pdf`
+        : `nadeem-invoices-${today()}.pdf`;
+
+      return new NextResponse(new Uint8Array(pdfBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
+    // ========================================================
+    // FORMAT: EXCEL (Optional fallback)
+    // ========================================================
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Nadeem Agency";
     workbook.created = new Date();
 
-    const orders = result.rows;
+    const ordersSheet = workbook.addWorksheet("Orders");
+    ordersSheet.columns = [
+      { header: "Order Number", key: "order_number", width: 16 },
+      { header: "Date", key: "order_date", width: 14 },
+      { header: "Time", key: "order_time", width: 12 },
+      { header: "Shop Code", key: "shop_code", width: 14 },
+      { header: "Shop Name", key: "shop_name", width: 28 },
+      { header: "Area / Bazaar", key: "area", width: 20 },
+      { header: "City", key: "city", width: 16 },
+      { header: "Order Booker", key: "order_booker", width: 22 },
+      { header: "Products / Items Booked", key: "items_summary", width: 45 },
+      { header: "Subtotal (Rs)", key: "subtotal", width: 15 },
+      { header: "Discount (Rs)", key: "discount", width: 14 },
+      { header: "Tax (Rs)", key: "tax", width: 12 },
+      { header: "Grand Total (Rs)", key: "grand_total", width: 16 },
+      { header: "Payment Status", key: "status", width: 15 },
+    ];
 
-    // --- SHEET 1: Orders (1 row per order) ---
-    if (format !== "items") {
-      const ordersSheet = workbook.addWorksheet("Orders");
+    const headerRow = ordersSheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF25897C" },
+    };
 
-      ordersSheet.columns = [
-        { header: "Order Number", key: "order_number", width: 16 },
-        { header: "Date", key: "order_date", width: 14 },
-        { header: "Time", key: "order_time", width: 12 },
-        { header: "Shop Code", key: "shop_code", width: 14 },
-        { header: "Shop Name", key: "shop_name", width: 28 },
-        { header: "Area / Bazaar", key: "area", width: 20 },
-        { header: "City", key: "city", width: 16 },
-        { header: "Order Booker", key: "order_booker", width: 22 },
-        { header: "Products / Items Booked", key: "items_summary", width: 45 },
-        { header: "Total Items", key: "item_count", width: 12 },
-        { header: "Total Quantity", key: "total_quantity", width: 14 },
-        { header: "Subtotal (Rs)", key: "subtotal", width: 15 },
-        { header: "Discount (Rs)", key: "discount", width: 14 },
-        { header: "Tax (Rs)", key: "tax", width: 12 },
-        { header: "Grand Total (Rs)", key: "grand_total", width: 16 },
-        { header: "Status", key: "status", width: 14 },
-      ];
+    orders.forEach((o) => {
+      const itemsList = Array.isArray(o.items) ? o.items : [];
+      const summaryText = itemsList
+        .map((it: any) => `${it.productName} (x${it.quantity} ${it.unit})`)
+        .join("; ");
 
-      const hRow = ordersSheet.getRow(1);
-      hRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
-      hRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1C2E38" } };
-      hRow.alignment = { vertical: "middle", horizontal: "center" };
-      hRow.height = 28;
-
-      let totalQuantityAll = 0;
-      let totalSubtotalAll = 0;
-      let totalDiscountAll = 0;
-      let totalTaxAll = 0;
-      let totalGrandTotalAll = 0;
-
-      for (const order of orders) {
-        const rawItems = Array.isArray(order.items) ? order.items : [];
-        const itemsSummary = rawItems
-          .map((i: any) => `${i.productName} (${Number(i.quantity)} ${i.unit})`)
-          .join(", ");
-        const totalQty = rawItems.reduce((acc: number, i: any) => acc + Number(i.quantity || 0), 0);
-        const subtotal = Number(order.subtotal || 0);
-        const discount = Number(order.discount || 0);
-        const tax = Number(order.tax || 0);
-        const grandTotal = Number(order.grand_total || 0);
-
-        totalQuantityAll += totalQty;
-        totalSubtotalAll += subtotal;
-        totalDiscountAll += discount;
-        totalTaxAll += tax;
-        totalGrandTotalAll += grandTotal;
-
-        const row = ordersSheet.addRow({
-          order_number: order.order_number,
-          order_date: order.order_date,
-          order_time: order.order_time,
-          shop_code: order.shop_code,
-          shop_name: order.shop_name,
-          area: order.area || "General",
-          city: order.city,
-          order_booker: order.order_booker,
-          items_summary: itemsSummary || "No items",
-          item_count: rawItems.length,
-          total_quantity: totalQty,
-          subtotal: subtotal,
-          discount: discount,
-          tax: tax,
-          grand_total: grandTotal,
-          status: order.status,
-        });
-        row.alignment = { vertical: "middle" };
-      }
-
-      if (orders.length > 0) {
-        const summaryRow = ordersSheet.addRow({
-          order_number: "TOTAL",
-          shop_name: `${orders.length} orders`,
-          total_quantity: totalQuantityAll,
-          subtotal: totalSubtotalAll,
-          discount: totalDiscountAll,
-          tax: totalTaxAll,
-          grand_total: totalGrandTotalAll,
-        });
-        summaryRow.font = { bold: true };
-        summaryRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF0EDE4" } };
-        summaryRow.height = 24;
-        summaryRow.alignment = { vertical: "middle" };
-      }
-
-      for (const key of ["subtotal", "discount", "tax", "grand_total"]) {
-        ordersSheet.getColumn(key).numFmt = "#,##0.00";
-      }
-      ordersSheet.getColumn("total_quantity").numFmt = "#,##0.00";
-    }
-
-    // --- SHEET 2: Line Items Detail (Itemized product rows) ---
-    if (format === "both" || format === "items") {
-      const itemsSheet = workbook.addWorksheet(format === "both" ? "Line Items Detail" : "Orders");
-
-      itemsSheet.columns = [
-        { header: "Order Number", key: "order_number", width: 16 },
-        { header: "Date", key: "order_date", width: 14 },
-        { header: "Time", key: "order_time", width: 12 },
-        { header: "Shop Code", key: "shop_code", width: 14 },
-        { header: "Shop Name", key: "shop_name", width: 28 },
-        { header: "Area / Bazaar", key: "area", width: 20 },
-        { header: "City", key: "city", width: 16 },
-        { header: "Order Booker", key: "order_booker", width: 22 },
-        { header: "Company / Brand", key: "company", width: 18 },
-        { header: "Product Code", key: "product_code", width: 16 },
-        { header: "Product Name", key: "product_name", width: 28 },
-        { header: "Unit", key: "unit", width: 12 },
-        { header: "Quantity", key: "quantity", width: 12 },
-        { header: "Unit Price (Rs)", key: "unit_price", width: 15 },
-        { header: "Line Total (Rs)", key: "line_total", width: 15 },
-        { header: "Status", key: "status", width: 14 },
-      ];
-
-      const hRow = itemsSheet.getRow(1);
-      hRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
-      hRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF25897C" } };
-      hRow.alignment = { vertical: "middle", horizontal: "center" };
-      hRow.height = 28;
-
-      let itemsTotalQty = 0;
-      let itemsTotalLineVal = 0;
-      let totalItemCount = 0;
-
-      for (const order of orders) {
-        const rawItems = Array.isArray(order.items) ? order.items : [];
-        for (const item of rawItems) {
-          totalItemCount++;
-          const qty = Number(item.quantity || 0);
-          const price = Number(item.unitPrice || 0);
-          const lineVal = Number(item.lineTotal ?? (qty * price));
-          itemsTotalQty += qty;
-          itemsTotalLineVal += lineVal;
-
-          const r = itemsSheet.addRow({
-            order_number: order.order_number,
-            order_date: order.order_date,
-            order_time: order.order_time,
-            shop_code: order.shop_code,
-            shop_name: order.shop_name,
-            area: order.area || "General",
-            city: order.city,
-            order_booker: order.order_booker,
-            company: item.company || "Other",
-            product_code: item.productCode,
-            product_name: item.productName,
-            unit: item.unit,
-            quantity: qty,
-            unit_price: price,
-            line_total: lineVal,
-            status: order.status,
-          });
-          r.alignment = { vertical: "middle" };
-        }
-      }
-
-      if (totalItemCount > 0) {
-        const itemSummary = itemsSheet.addRow({
-          order_number: "TOTAL",
-          product_name: `${totalItemCount} line items across ${orders.length} orders`,
-          quantity: itemsTotalQty,
-          line_total: itemsTotalLineVal,
-        });
-        itemSummary.font = { bold: true };
-        itemSummary.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF0EDE4" } };
-        itemSummary.height = 24;
-        itemSummary.alignment = { vertical: "middle" };
-      }
-
-      for (const key of ["unit_price", "line_total"]) {
-        itemsSheet.getColumn(key).numFmt = "#,##0.00";
-      }
-      itemsSheet.getColumn("quantity").numFmt = "#,##0.00";
-    }
+      ordersSheet.addRow({
+        order_number: o.order_number,
+        order_date: o.order_date,
+        order_time: o.order_time,
+        shop_code: o.shop_code,
+        shop_name: o.shop_name,
+        area: o.area || "General",
+        city: o.city || "",
+        order_booker: o.order_booker,
+        items_summary: summaryText,
+        subtotal: Number(o.subtotal || 0),
+        discount: Number(o.discount || 0),
+        tax: Number(o.tax || 0),
+        grand_total: Number(o.grand_total || 0),
+        status: o.status,
+      });
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
-
-    const sanitize = (val: string) => val.toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
-    const dateRange = from && to ? (from === to ? from : `${from}_to_${to}`) : from ? `from_${from}` : to ? `until_${to}` : today();
-    const prefix = user.role === "order_booker" ? `${sanitize(user.name)}_orders` : "nadeem_orders";
-    const modeSuffix = format === "items" ? "_line_items" : "";
-    const filename = `${prefix}_${dateRange}${modeSuffix}.xlsx`;
+    const filename = `nadeem-orders-${today()}.xlsx`;
 
     return new NextResponse(buffer, {
+      status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
   } catch (error) {
-    console.error("Export orders error:", error);
-    return NextResponse.json({ error: "Failed to export orders" }, { status: 500 });
+    console.error("Export error:", error);
+    return NextResponse.json({ error: "Failed to generate export file" }, { status: 500 });
   }
 }

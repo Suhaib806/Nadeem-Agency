@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Building2, 
@@ -28,18 +29,28 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/use-user";
 import { money } from "@/lib/utils";
-import { Product } from "@/types";
+import { Company, Product } from "@/types";
 import { getCompanyBrand, CORE_COMPANIES, PRESET_COMPANIES } from "@/lib/companies";
 import { ProductDetailModal } from "@/components/products/ProductDetailModal";
+import { CompanyModal } from "@/components/companies/CompanyModal";
 
 function ProductForm({
   product,
   onClose,
+  onDelete,
 }: {
   product?: Product | null;
   onClose: () => void;
+  onDelete?: (id: number) => void;
 }) {
   const queryClient = useQueryClient();
+  const [showNewCompanyModal, setShowNewCompanyModal] = useState(false);
+
+  const companiesQuery = useQuery<{ items: Company[] }>({
+    queryKey: ["companies"],
+    queryFn: () => apiFetch("/api/companies"),
+  });
+
   const [form, setForm] = useState({
     productCode: product?.productCode || "",
     productName: product?.productName || "",
@@ -51,11 +62,15 @@ function ProductForm({
     status: product?.status || "active",
     imageUrl: product?.imageUrl || "",
   });
-  const [isCustomCompany, setIsCustomCompany] = useState(
-    product?.company ? !PRESET_COMPANIES.includes(product.company) : false,
-  );
+  const [isCustomCompany, setIsCustomCompany] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const dbCompanies = (companiesQuery.data?.items || []).map((c) => c.name.trim());
+  const allCompanyOptions = Array.from(new Set([...dbCompanies, ...PRESET_COMPANIES]));
+  if (form.company && !allCompanyOptions.includes(form.company)) {
+    allCompanyOptions.push(form.company);
+  }
 
   const mutation = useMutation({
     mutationFn: (data: any) =>
@@ -65,6 +80,7 @@ function ProductForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["all-products-for-company-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
       onClose();
     },
     onError: (err: any) => {
@@ -203,15 +219,27 @@ function ProductForm({
 
         {/* Company Selection Field */}
         <div className="space-y-1 sm:col-span-2">
-          <label className="block text-xs font-bold text-[#1e3441]">
-            Company <span className="text-[#c62828]">*</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-[#1e3441]">
+              Company <span className="text-[#c62828]">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowNewCompanyModal(true)}
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#25897c] hover:underline"
+            >
+              <Plus size={12} />
+              <span>Register New Company</span>
+            </button>
+          </div>
           <select
             value={isCustomCompany ? "__custom__" : form.company}
             onChange={(e) => {
               if (e.target.value === "__custom__") {
                 setIsCustomCompany(true);
                 setForm((f) => ({ ...f, company: "" }));
+              } else if (e.target.value === "__add_new__") {
+                setShowNewCompanyModal(true);
               } else {
                 setIsCustomCompany(false);
                 setForm((f) => ({ ...f, company: e.target.value }));
@@ -219,14 +247,13 @@ function ProductForm({
             }}
             className="h-11 w-full rounded-lg border border-[#ded6c3] bg-white px-3 text-sm font-medium text-[#1e3441] outline-none transition focus:border-[#25897c]"
           >
-            <option value="J.P">J.P</option>
-            <option value="Amir Food">Amir Food</option>
-            <option value="JP Amir Food">JP Amir Food</option>
-            <option value="Mux Food">Mux Food</option>
-            <option value="Master Food">Master Food</option>
-            <option value="Jahanzaib Food">Jahanzaib Food</option>
-            <option value="Other">Other (No company / Unassigned)</option>
-            <option value="__custom__">+ Add Custom Company...</option>
+            {allCompanyOptions.map((c) => (
+              <option key={c} value={c}>
+                {c} {c === "Other" ? "(No company / Unassigned)" : ""}
+              </option>
+            ))}
+            <option value="__add_new__">+ Register New Company (with Logo)...</option>
+            <option value="__custom__">+ Add Custom Company Name...</option>
           </select>
           {isCustomCompany && (
             <input
@@ -238,6 +265,16 @@ function ProductForm({
               className="mt-2 h-10 w-full rounded-lg border border-[#ded6c3] bg-white px-3 text-sm text-[#1e3441] outline-none transition focus:border-[#25897c]"
             />
           )}
+
+          <CompanyModal
+            isOpen={showNewCompanyModal}
+            onClose={() => setShowNewCompanyModal(false)}
+            onSuccess={(newComp) => {
+              setForm((f) => ({ ...f, company: newComp.name }));
+              setIsCustomCompany(false);
+              queryClient.invalidateQueries({ queryKey: ["companies"] });
+            }}
+          />
         </div>
 
         <Field
@@ -278,13 +315,30 @@ function ProductForm({
           <option value="inactive">Inactive</option>
         </SelectField>
 
-        <div className="flex justify-end gap-2 sm:col-span-2 mt-3">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving..." : product ? "Save changes" : "Add product"}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 mt-3">
+          {product?.id && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-[#c62828] hover:bg-[#c62828]/10 text-xs px-2.5"
+              onClick={() => {
+                if (confirm(`Permanently delete "${product.productName}" (${product.productCode})? This cannot be undone.`)) {
+                  onDelete(product.id);
+                  onClose();
+                }
+              }}
+            >
+              <Trash2 size={15} /> Delete product
+            </Button>
+          ) : <div />}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : product ? "Save changes" : "Add product"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
@@ -296,10 +350,28 @@ export default function ProductsPage() {
   const queryClient = useQueryClient();
 
   const [selectedCompany, setSelectedCompany] = useState<string>("all");
+  const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [search, setSearch] = useState("");
   const [modalProduct, setModalProduct] = useState<Product | null | "new">(null);
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  // Read URL company parameter if navigating from /admin/companies
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const comp = urlParams.get("company");
+      if (comp) {
+        setSelectedCompany(comp);
+      }
+    }
+  }, []);
+
+  const companiesQuery = useQuery<{ items: Company[] }>({
+    queryKey: ["companies"],
+    queryFn: () => apiFetch("/api/companies"),
+    enabled: !!user,
+  });
 
   const productsQuery = useQuery<{ items: Product[]; total: number }>({
     queryKey: ["products", search, selectedCompany],
@@ -325,6 +397,7 @@ export default function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["all-products-for-company-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
     },
   });
 
@@ -338,6 +411,7 @@ export default function ProductsPage() {
 
   const allProducts = allProductsQuery.data?.items || [];
   const products = productsQuery.data?.items || [];
+  const dbCompanies = companiesQuery.data?.items || [];
 
   // Compute product counts per company
   const companyCounts = allProducts.reduce((acc, p) => {
@@ -346,18 +420,21 @@ export default function ProductsPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const coreCompanies = CORE_COMPANIES;
+  // Map of company name -> logo from database
+  const companyLogoMap = dbCompanies.reduce((acc, c) => {
+    if (c.logo) acc[c.name.trim()] = c.logo;
+    return acc;
+  }, {} as Record<string, string>);
 
   const extraCompanies = Array.from(
-    new Set(
-      allProducts
-        .map((p) => (p.company || "Other").trim())
-        .filter((c) => !coreCompanies.includes(c) && c !== "Other")
-    )
-  ).sort();
+    new Set([
+      ...CORE_COMPANIES,
+      ...dbCompanies.map((c) => c.name.trim()),
+      ...allProducts.map((p) => (p.company || "Other").trim()),
+    ])
+  ).filter((c) => c !== "Other");
 
   const displayCompanies = [
-    ...coreCompanies,
     ...extraCompanies,
     "Other",
   ];
@@ -369,9 +446,14 @@ export default function ProductsPage() {
         title="Products & Brands"
         description="Browse items by distributor company, inspect high-res packaging, and manage pricing."
         action={
-          <Button onClick={() => setModalProduct("new")}>
-            <Plus size={17} /> Add product
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setShowAddCompanyModal(true)}>
+              <Building2 size={16} /> Add Company
+            </Button>
+            <Button onClick={() => setModalProduct("new")}>
+              <Plus size={17} /> Add Product
+            </Button>
+          </div>
         }
       />
 
@@ -382,15 +464,31 @@ export default function ProductsPage() {
             <Store size={14} className="text-[#25897c]" />
             Distributor Companies
           </p>
-          {selectedCompany !== "all" && (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedCompany("all")}
-              className="text-xs font-bold text-[#e65100] hover:underline"
+              onClick={() => setShowAddCompanyModal(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#25897c] bg-[#25897c]/10 px-2.5 py-1 text-xs font-bold text-[#25897c] hover:bg-[#25897c] hover:text-white transition shadow-xs"
             >
-              Reset to all companies
+              <Plus size={13} />
+              <span>Add Company</span>
             </button>
-          )}
+            <Link
+              href="/admin/companies"
+              className="text-xs font-bold text-[#627784] hover:text-[#1e3441] hover:underline"
+            >
+              Manage Brands &rarr;
+            </Link>
+            {selectedCompany !== "all" && (
+              <button
+                type="button"
+                onClick={() => setSelectedCompany("all")}
+                className="text-xs font-bold text-[#e65100] hover:underline ml-1"
+              >
+                Reset to all
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
@@ -440,7 +538,7 @@ export default function ProductsPage() {
           {displayCompanies.map((comp) => {
             const isSelected = selectedCompany === comp;
             const count = companyCounts[comp] || 0;
-            const brand = getCompanyBrand(comp);
+            const brand = getCompanyBrand(comp, companyLogoMap[comp]);
 
             return (
               <button
@@ -480,11 +578,9 @@ export default function ProductsPage() {
                       isSelected ? "text-white/80" : "text-[#627784]"
                     }`}
                   >
-                    {comp === "Other" ? "Unassigned" : "Distributor"}
+                    Partner
                   </p>
-                  <h4 className="truncate text-sm font-extrabold" title={comp}>
-                    {comp}
-                  </h4>
+                  <h4 className="truncate text-sm font-extrabold">{comp}</h4>
                 </div>
               </button>
             );
@@ -678,12 +774,12 @@ export default function ProductsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm(`Archive ${p.productName}?`)) {
+                          if (confirm(`Permanently delete "${p.productName}" (${p.productCode})? This will delete the product directly.`)) {
                             deleteMutation.mutate(p.id);
                           }
                         }}
                         className="flex size-8 items-center justify-center rounded-lg bg-[#faf8f4] text-[#c62828] border border-[#ded6c3] hover:bg-[#c62828] hover:text-white hover:border-[#c62828] transition"
-                        title="Archive product"
+                        title="Delete product directly"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -785,11 +881,11 @@ export default function ProductsPage() {
                             variant="ghost"
                             className="size-8 p-0 text-[#c62828] hover:bg-[#c62828]/10"
                             onClick={() => {
-                              if (confirm(`Archive ${p.productName}?`)) {
+                              if (confirm(`Permanently delete "${p.productName}" (${p.productCode})? This will delete the product directly.`)) {
                                 deleteMutation.mutate(p.id);
                               }
                             }}
-                            title="Archive"
+                            title="Delete product directly"
                           >
                             <Trash2 size={14} />
                           </Button>
@@ -814,6 +910,12 @@ export default function ProductsPage() {
             setPreviewProduct(null);
             setModalProduct(p);
           }}
+          onDelete={(p) => {
+            if (confirm(`Permanently delete "${p.productName}" (${p.productCode})? This cannot be undone.`)) {
+              deleteMutation.mutate(p.id);
+              setPreviewProduct(null);
+            }
+          }}
         />
       )}
 
@@ -822,6 +924,20 @@ export default function ProductsPage() {
         <ProductForm
           product={modalProduct === "new" ? null : modalProduct}
           onClose={() => setModalProduct(null)}
+          onDelete={(id) => deleteMutation.mutate(id)}
+        />
+      )}
+
+      {/* Add Company Modal */}
+      {showAddCompanyModal && (
+        <CompanyModal
+          isOpen={showAddCompanyModal}
+          onClose={() => setShowAddCompanyModal(false)}
+          onSuccess={(newComp) => {
+            setSelectedCompany(newComp.name);
+            queryClient.invalidateQueries({ queryKey: ["companies"] });
+            queryClient.invalidateQueries({ queryKey: ["all-products-for-company-counts"] });
+          }}
         />
       )}
     </Shell>

@@ -17,7 +17,8 @@ import {
   ZoomIn, 
   Pencil, 
   Store,
-  Tag
+  Tag,
+  Trash2,
 } from "lucide-react";
 
 interface ProductDetailModalProps {
@@ -27,6 +28,7 @@ interface ProductDetailModalProps {
   currentQuantity?: number;
   onAddToCart?: (product: Product, quantity: number) => void;
   onEdit?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
 }
 
 export function ProductDetailModal({
@@ -36,6 +38,7 @@ export function ProductDetailModal({
   currentQuantity = 1,
   onAddToCart,
   onEdit,
+  onDelete,
 }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(Math.max(1, currentQuantity));
   const [isZoomed, setIsZoomed] = useState(false);
@@ -202,24 +205,36 @@ export function ProductDetailModal({
               </div>
             </div>
 
-            {/* Admin Stats & Edit Action */}
+            {/* Admin Stats & Edit/Delete Action */}
             {mode === "admin" && (
-              <div className="flex items-center justify-between pt-2 border-t border-[#ded6c3]/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#ded6c3]/60">
                 <span className="text-xs font-medium text-[#7c7260]">
                   Booked today across retailers: <strong className="text-[#1e3441]">{product.ordersToday ?? 0} units</strong>
                 </span>
-                {onEdit && (
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onEdit(product);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#1e3441] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#25897c]"
-                  >
-                    <Pencil size={13} />
-                    Edit Product
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(product)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#c62828]/20 bg-[#c62828]/10 px-3 py-2 text-xs font-bold text-[#c62828] transition hover:bg-[#c62828] hover:text-white"
+                      title="Delete product directly"
+                    >
+                      <Trash2 size={13} />
+                      Delete
+                    </button>
+                  )}
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onEdit(product);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#1e3441] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#25897c]"
+                    >
+                      <Pencil size={13} />
+                      Edit Product
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

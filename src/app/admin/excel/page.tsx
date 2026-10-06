@@ -29,7 +29,7 @@ export default function ExcelDeskPage() {
   const [shopId, setShopId] = useState<string>("");
   const [bookerId, setBookerId] = useState<string>("");
   const [status, setStatus] = useState<string>("" );
-  const [format, setFormat] = useState<string>("summary");
+  const [format, setFormat] = useState<string>("pdf");
   const [exporting, setExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [downloadedFilename, setDownloadedFilename] = useState<string | null>(null);
@@ -400,17 +400,16 @@ export default function ExcelDeskPage() {
               </label>
             </div>
 
-            {/* Layout filter */}
+            {/* Format selection */}
             <label className="block space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Excel Workbook Layout</span>
+              <span className="text-[10px] font-bold uppercase tracking-[.1em] text-white/60">Export File Format</span>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
                 className="h-10 w-full rounded-lg border border-white/20 bg-[#1c2e38] px-3 text-sm text-white outline-none focus:border-[#e65100]"
               >
-                <option value="summary">Orders Summary (1 row per order — Products grouped)</option>
-                <option value="both">Complete Workbook (Orders summary + Line Items Detail sheets)</option>
-                <option value="items">Line Items Breakdown (Product rows only)</option>
+                <option value="pdf">Official PDF Invoices & Receipts (Recommended)</option>
+                <option value="excel">Excel Workbook (.xlsx)</option>
               </select>
             </label>
           </div>
@@ -421,7 +420,11 @@ export default function ExcelDeskPage() {
             onClick={handleDownloadExport}
             disabled={exporting}
           >
-            {exporting ? "Generating workbook..." : "Download Excel workbook (.xlsx)"}
+            {exporting
+              ? "Generating export..."
+              : format === "pdf"
+              ? "Download PDF Receipts"
+              : "Download Excel workbook (.xlsx)"}
             <Download size={16} />
           </Button>
 

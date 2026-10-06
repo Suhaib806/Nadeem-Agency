@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Eye, Plus, Clock, CheckCircle2, XCircle, ListFilter } from "lucide-react";
+import { Download, Eye, Plus, Clock, CheckCircle2, XCircle, ListFilter, FileText } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
 import { PageHead } from "@/components/ui/Metric";
@@ -76,7 +76,7 @@ export default function BookerOrdersPage() {
               onClick={() => setShowExport(true)}
               className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
             >
-              <Download size={16} /> Export
+              <Download size={16} /> Export Invoices (PDF)
             </Button>
             <Link
               href="/booker/new-order"
@@ -239,6 +239,17 @@ export default function BookerOrdersPage() {
                 >
                   <Eye size={15} />
                 </button>
+
+                {/* Download PDF Receipt */}
+                <a
+                  href={`/api/reports/export?orderId=${o.id}&format=pdf`}
+                  download={`invoice-${o.orderNumber || o.id}.pdf`}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Download receipt PDF"
+                  className="grid size-8 place-items-center rounded-lg border border-[#ded6c3] bg-[#fbf9f4] text-[#25897c] hover:bg-[#25897c] hover:text-white transition"
+                >
+                  <FileText size={15} />
+                </a>
               </div>
             </div>
           ))}

@@ -100,11 +100,25 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const id = parseId(rawId);
   if (!id) return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
 
+  const client = await pool.connect();
   try {
-    await pool.query("UPDATE products SET status = 'inactive', updated_at = NOW() WHERE id = $1", [id]);
+    await client.query("BEGIN");
+    // Remove any order items referencing this product
+    await client.query("DELETE FROM order_items WHERE product_id = $1", [id]);
+    const result = await client.query("DELETE FROM products WHERE id = $1 RETURNING id", [id]);
+    await client.query("COMMIT");
+
+    if (!result.rows[0]) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
     return new NextResponse(null, { status: 204 });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Delete product error:", error);
-    return NextResponse.json({ error: "Failed to archive product" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
+  } finally {
+    client.release();
   }
 }
+

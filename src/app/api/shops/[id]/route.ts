@@ -100,11 +100,33 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const id = parseId(rawId);
   if (!id) return NextResponse.json({ error: "Invalid shop id" }, { status: 400 });
 
+  const client = await pool.connect();
   try {
-    await pool.query("UPDATE shops SET status = 'inactive', updated_at = NOW() WHERE id = $1", [id]);
+    await client.query("BEGIN");
+    // Delete order_items and audit_events for orders tied to this shop
+    await client.query(
+      "DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE shop_id = $1)",
+      [id],
+    );
+    await client.query(
+      "DELETE FROM audit_events WHERE order_id IN (SELECT id FROM orders WHERE shop_id = $1)",
+      [id],
+    );
+    await client.query("DELETE FROM orders WHERE shop_id = $1", [id]);
+    const result = await client.query("DELETE FROM shops WHERE id = $1 RETURNING id", [id]);
+    await client.query("COMMIT");
+
+    if (!result.rows[0]) {
+      return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+    }
+
     return new NextResponse(null, { status: 204 });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Delete shop error:", error);
-    return NextResponse.json({ error: "Failed to archive shop" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete shop" }, { status: 500 });
+  } finally {
+    client.release();
   }
 }
+

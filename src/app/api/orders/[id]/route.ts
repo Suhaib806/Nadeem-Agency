@@ -155,8 +155,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!id) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
 
   try {
-    const existingRes = await pool.query<{ id: number; order_booker_id: number }>(
-      "SELECT id, order_booker_id FROM orders WHERE id = $1",
+    const existingRes = await pool.query<{ id: number; order_booker_id: number; order_number: string }>(
+      "SELECT id, order_booker_id, order_number FROM orders WHERE id = $1",
       [id],
     );
     const existing = existingRes.rows[0];
@@ -168,13 +168,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "You do not have access to this order" }, { status: 403 });
     }
 
-    await pool.query("UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1", [id]);
-    await pool.query("INSERT INTO audit_events (order_id, action, actor_id) VALUES ($1, 'Order cancelled', $2)", [id, auth.user.id]);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM order_items WHERE order_id = $1", [id]);
+      await client.query("DELETE FROM audit_events WHERE order_id = $1", [id]);
+      await client.query("DELETE FROM orders WHERE id = $1", [id]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    const order = await buildOrder(id);
-    return NextResponse.json(order);
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error("Cancel order error:", error);
-    return NextResponse.json({ error: "Failed to cancel order" }, { status: 500 });
+    console.error("Delete order error:", error);
+    return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });
   }
 }
+

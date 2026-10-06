@@ -164,11 +164,11 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 rounded-lg bg-[#ded6c3]/40 p-3 text-center text-xs text-[#627784]">
+          {/* <div className="mt-8 rounded-lg bg-[#ded6c3]/40 p-3 text-center text-xs text-[#627784]">
             <p className="font-semibold text-[#1e3441]">Demo Accounts:</p>
             <p className="mt-1">Admin: <code className="text-[#25897c]">admin@nadeem.agency</code> / <code className="text-[#25897c]">admin123</code></p>
             <p className="mt-0.5">Booker: <code className="text-[#25897c]">adeel@nadeem.agency</code> / <code className="text-[#25897c]">booker123</code></p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

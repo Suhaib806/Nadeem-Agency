@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   BarChart3,
+  Building2,
   CalendarDays,
   ClipboardList,
   FileSpreadsheet,
@@ -29,6 +30,7 @@ const adminNav = [
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/shops", label: "Shops", icon: Store },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/order-bookers", label: "Order bookers", icon: Users },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/excel", label: "Excel desk", icon: FileSpreadsheet },

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   DollarSign,
+  Download,
   FileText,
   History,
   Loader2,
@@ -20,6 +21,7 @@ import {
   User as UserIcon,
   X,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -84,6 +86,22 @@ export function OrderDetailModal({
     },
     onError: (err: any) => {
       setErrorMessage(err.message || "Failed to update order status");
+      setTimeout(() => setErrorMessage(null), 5000);
+    },
+  });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/orders/${orderId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["booker-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["booker-today-summary"] });
+      onClose();
+    },
+    onError: (err: any) => {
+      setErrorMessage(err.message || "Failed to delete order");
       setTimeout(() => setErrorMessage(null), 5000);
     },
   });
@@ -444,16 +462,44 @@ export function OrderDetailModal({
 
         {/* Modal Footer */}
         <div className="border-t border-[#ded6c3] bg-[#f3efe7] px-5 py-3 flex items-center justify-between">
-          <span className="text-xs text-[#627784]">
-            Role: <strong className="capitalize">{currentUser.role.replace("_", " ")}</strong>
-          </span>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da] text-xs h-9 px-4"
-          >
-            Close
-          </Button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[#627784]">
+              Role: <strong className="capitalize">{currentUser.role.replace("_", " ")}</strong>
+            </span>
+            {currentUser.role === "admin" && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (confirm(`Permanently delete order ${order?.orderNumber}? This will completely remove it from the system.`)) {
+                    deleteOrderMutation.mutate();
+                  }
+                }}
+                disabled={deleteOrderMutation.isPending}
+                className="text-[#c62828] hover:bg-[#c62828]/10 text-xs h-8 px-2.5 gap-1.5"
+                title="Delete this order"
+              >
+                <Trash2 size={13} />
+                {deleteOrderMutation.isPending ? "Deleting..." : "Delete order"}
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/reports/export?orderId=${orderId}&format=pdf`}
+              download={`invoice-${order?.orderNumber || orderId}.pdf`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#25897c] px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#1f7368] transition"
+              title="Download official PDF receipt matching your print layout"
+            >
+              <Download size={14} /> Download PDF Receipt
+            </a>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da] text-xs h-9 px-4"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </div>
     </div>

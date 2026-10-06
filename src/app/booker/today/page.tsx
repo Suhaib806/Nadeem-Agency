@@ -56,7 +56,7 @@ export default function BookerTodayPage() {
               onClick={() => setShowExport(true)}
               className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
             >
-              <Download size={16} /> Export orders
+              <Download size={16} /> Export Receipts (PDF)
             </Button>
             <Link
               href="/booker/new-order"

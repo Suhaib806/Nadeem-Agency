@@ -175,16 +175,35 @@ export const auditEventsRelations = relations(auditEventsTable, ({ one }) => ({
   actor: one(usersTable, { fields: [auditEventsTable.actorId], references: [usersTable.id] }),
 }));
 
+export const companiesTable = pgTable(
+  "companies",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    logo: text("logo"),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nameUnique: uniqueIndex("companies_name_unique").on(table.name),
+  }),
+);
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertShopSchema = createInsertSchema(shopsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCompanySchema = createInsertSchema(companiesTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type User = typeof usersTable.$inferSelect;
 export type Shop = typeof shopsTable.$inferSelect;
 export type Product = typeof productsTable.$inferSelect;
+export type DbCompany = typeof companiesTable.$inferSelect;
 export type Order = typeof ordersTable.$inferSelect;
 export type OrderItem = typeof orderItemsTable.$inferSelect;
 export type AuditEvent = typeof auditEventsTable.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertShop = z.infer<typeof insertShopSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+

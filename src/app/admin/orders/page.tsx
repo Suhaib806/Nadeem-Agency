@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, ListFilter, Plus, Clock, CheckCircle2, XCircle, X } from "lucide-react";
+import { Download, Eye, ListFilter, Plus, Clock, CheckCircle2, XCircle, X, Trash2, FileText } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
 import { PageHead } from "@/components/ui/Metric";
@@ -52,6 +52,19 @@ export default function AdminOrdersPage() {
   });
 
   const cancelMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch(`/api/orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "cancelled" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
     mutationFn: (id: number) => apiFetch(`/api/orders/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -94,7 +107,7 @@ export default function AdminOrdersPage() {
             onClick={() => setShowExport(true)}
             className="border-[#ded6c3] bg-[#fbf9f4] text-[#1e3441] hover:bg-[#efe9da]"
           >
-            <Download size={16} /> Export to Excel
+            <Download size={16} /> Export Invoices (PDF)
           </Button>
         }
       />
@@ -269,6 +282,17 @@ export default function AdminOrdersPage() {
                   <Eye size={15} />
                 </button>
 
+                {/* Download PDF Receipt */}
+                <a
+                  href={`/api/reports/export?orderId=${o.id}&format=pdf`}
+                  download={`invoice-${o.orderNumber || o.id}.pdf`}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Download receipt PDF"
+                  className="grid size-8 place-items-center rounded-lg border border-[#ded6c3] bg-[#fbf9f4] text-[#25897c] hover:bg-[#25897c] hover:text-white transition"
+                >
+                  <FileText size={15} />
+                </a>
+
                 {o.status !== "cancelled" && (
                   <Button
                     variant="ghost"
@@ -284,6 +308,20 @@ export default function AdminOrdersPage() {
                     <X size={15} />
                   </Button>
                 )}
+
+                <Button
+                  variant="ghost"
+                  className="size-8 p-0 text-[#c62828] hover:bg-[#c62828]/10"
+                  title="Delete order directly"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Permanently delete order ${o.orderNumber}? This will remove it directly.`)) {
+                      deleteMutation.mutate(o.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={15} />
+                </Button>
               </div>
             </div>
           ))}

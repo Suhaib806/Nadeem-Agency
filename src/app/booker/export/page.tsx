@@ -30,7 +30,7 @@ export default function BookerExportPage() {
   const [to, setTo] = useState<string>(today());
   const [shopId, setShopId] = useState<string>("");
   const [status, setStatus] = useState<string>("");
-  const [format, setFormat] = useState<string>("summary");
+  const [format, setFormat] = useState<string>("pdf");
 
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,15 +236,14 @@ export default function BookerExportPage() {
               <option value="cancelled">Cancelled only</option>
             </SelectField>
 
-            {/* Workbook Layout */}
+            {/* Export Format */}
             <SelectField
-              label="Excel Workbook Layout"
+              label="Export Format"
               value={format}
               onChange={(e) => setFormat(e.target.value)}
             >
-              <option value="summary">Orders Summary (1 row per order — Products grouped)</option>
-              <option value="both">Complete Workbook (Orders summary + Line Items Detail sheets)</option>
-              <option value="items">Line Items Breakdown (Product rows only)</option>
+              <option value="pdf">Official PDF Invoices & Receipts (Recommended)</option>
+              <option value="excel">Excel Workbook (.xlsx)</option>
             </SelectField>
 
             {error && (
@@ -269,10 +268,11 @@ export default function BookerExportPage() {
               className="mt-2 w-full min-h-11 text-base"
             >
               {exporting ? (
-                "Generating Excel workbook..."
+                format === "pdf" ? "Generating PDF receipts..." : "Generating Excel..."
               ) : (
                 <>
-                  <Download size={18} /> Download Excel workbook (.xlsx)
+                  <Download size={18} />
+                  {format === "pdf" ? "Download PDF Receipts" : "Download Excel workbook (.xlsx)"}
                 </>
               )}
             </Button>

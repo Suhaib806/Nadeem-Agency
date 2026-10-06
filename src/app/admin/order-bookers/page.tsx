@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Users } from "lucide-react";
+import { Plus, Settings, Users, Trash2 } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
 import { Field, SelectField } from "@/components/ui/Field";
@@ -18,9 +18,11 @@ import { User } from "@/types";
 function BookerForm({
   user,
   onClose,
+  onDelete,
 }: {
   user?: User | null;
   onClose: () => void;
+  onDelete?: (id: number) => void;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -97,13 +99,30 @@ function BookerForm({
           <option value="inactive">Inactive</option>
         </SelectField>
 
-        <div className="flex justify-end gap-2 pt-3">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving..." : user ? "Save changes" : "Create account"}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+          {user?.id && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-[#c62828] hover:bg-[#c62828]/10 text-xs px-2.5"
+              onClick={() => {
+                if (confirm(`Permanently delete order booker "${user.name}"? This will unassign their shops and remove their records directly.`)) {
+                  onDelete(user.id);
+                  onClose();
+                }
+              }}
+            >
+              <Trash2 size={15} /> Delete booker
+            </Button>
+          ) : <div />}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : user ? "Save changes" : "Create account"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
@@ -112,12 +131,23 @@ function BookerForm({
 
 export default function OrderBookersPage() {
   const { data: user, isLoading: userLoading } = useCurrentUser("admin");
+  const queryClient = useQueryClient();
   const [modalUser, setModalUser] = useState<User | null | "new">(null);
 
   const usersQuery = useQuery<User[]>({
     queryKey: ["users-all"],
     queryFn: () => apiFetch("/api/users"),
     enabled: !!user,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/users/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-all"] });
+      queryClient.invalidateQueries({ queryKey: ["users-bookers"] });
+      queryClient.invalidateQueries({ queryKey: ["shops"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
   });
 
   if (userLoading || !user) {
@@ -173,13 +203,27 @@ export default function OrderBookersPage() {
                 </div>
               </div>
 
-              <Button
-                variant="outline"
-                className="mt-5 w-full"
-                onClick={() => setModalUser(b)}
-              >
-                <Settings size={15} /> Manage account
-              </Button>
+              <div className="mt-5 flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setModalUser(b)}
+                >
+                  <Settings size={15} /> Manage account
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="size-10 shrink-0 p-0 text-[#c62828] border border-[#ded6c3] bg-[#fbf9f4] hover:bg-[#c62828]/10 hover:border-[#c62828]/30 transition"
+                  title="Delete order booker directly"
+                  onClick={() => {
+                    if (confirm(`Permanently delete order booker "${b.name}"? This will unassign their shops and remove their records directly.`)) {
+                      deleteMutation.mutate(b.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -189,6 +233,7 @@ export default function OrderBookersPage() {
         <BookerForm
           user={modalUser === "new" ? null : modalUser}
           onClose={() => setModalUser(null)}
+          onDelete={(id) => deleteMutation.mutate(id)}
         />
       )}
     </Shell>

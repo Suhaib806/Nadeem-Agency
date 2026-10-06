@@ -20,10 +20,12 @@ function ShopForm({
   shop,
   onClose,
   bookers,
+  onDelete,
 }: {
   shop?: Shop | null;
   onClose: () => void;
   bookers: User[];
+  onDelete?: (id: number) => void;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -158,13 +160,30 @@ function ShopForm({
           <option value="inactive">Inactive</option>
         </SelectField>
 
-        <div className="flex justify-end gap-2 sm:col-span-2 mt-3">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving..." : shop ? "Save changes" : "Add shop"}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 mt-3">
+          {shop?.id && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-[#c62828] hover:bg-[#c62828]/10 text-xs px-2.5"
+              onClick={() => {
+                if (confirm(`Permanently delete "${shop.shopName}" (${shop.shopCode})? This will delete the shop and its related records directly.`)) {
+                  onDelete(shop.id);
+                  onClose();
+                }
+              }}
+            >
+              <Trash2 size={15} /> Delete shop
+            </Button>
+          ) : <div />}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : shop ? "Save changes" : "Add shop"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
@@ -332,11 +351,12 @@ export default function ShopsPage() {
                   variant="ghost"
                   className="size-9 p-0 text-[#c62828] hover:bg-[#c62828]/10"
                   onClick={() => {
-                    if (confirm(`Archive ${s.shopName}? It will become inactive.`)) {
+                    if (confirm(`Permanently delete "${s.shopName}" (${s.shopCode})? This will delete the shop directly.`)) {
                       deleteMutation.mutate(s.id);
                     }
                   }}
-                  aria-label="Archive shop"
+                  title="Delete shop directly"
+                  aria-label="Delete shop"
                 >
                   <Trash2 size={15} />
                 </Button>
@@ -351,6 +371,7 @@ export default function ShopsPage() {
           shop={modalShop === "new" ? null : modalShop}
           bookers={bookers}
           onClose={() => setModalShop(null)}
+          onDelete={(id) => deleteMutation.mutate(id)}
         />
       )}
     </Shell>
