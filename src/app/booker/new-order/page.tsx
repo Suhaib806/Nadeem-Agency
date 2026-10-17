@@ -33,7 +33,7 @@ export default function NewOrderPage() {
 
   const shopsQuery = useQuery<{ items: Shop[] }>({
     queryKey: ["booker-shops"],
-    queryFn: () => apiFetch("/api/shops?status=active&pageSize=500"),
+    queryFn: () => apiFetch("/api/shops?status=active&pageSize=1000"),
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 min cache for instant loading
   });

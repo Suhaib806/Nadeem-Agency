@@ -54,7 +54,7 @@ export function ExportModal({
   // Fetch shops for dropdown filter
   const shopsQuery = useQuery<{ items: Shop[] }>({
     queryKey: ["export-shops"],
-    queryFn: () => apiFetch("/api/shops?status=active&pageSize=200"),
+    queryFn: () => apiFetch("/api/shops?status=active&pageSize=1000"),
     enabled: isOpen,
   });
 

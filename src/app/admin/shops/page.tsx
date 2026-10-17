@@ -207,7 +207,7 @@ export default function ShopsPage() {
       if (status) params.set("status", status);
       if (area) params.set("area", area);
       params.set("page", "1");
-      params.set("pageSize", "100");
+      params.set("pageSize", "1000");
       return apiFetch(`/api/shops?${params.toString()}`);
     },
     enabled: !!user,
@@ -215,7 +215,7 @@ export default function ShopsPage() {
 
   const allShopsQuery = useQuery<{ items: Shop[] }>({
     queryKey: ["all-shops-areas"],
-    queryFn: () => apiFetch("/api/shops?pageSize=500"),
+    queryFn: () => apiFetch("/api/shops?pageSize=1000"),
     enabled: !!user,
   });
 

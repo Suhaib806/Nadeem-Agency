@@ -38,7 +38,7 @@ export default function BookerExportPage() {
 
   const shopsQuery = useQuery<{ items: Shop[] }>({
     queryKey: ["booker-export-shops"],
-    queryFn: () => apiFetch("/api/shops?status=active&pageSize=200"),
+    queryFn: () => apiFetch("/api/shops?status=active&pageSize=1000"),
     enabled: !!user,
   });
 
