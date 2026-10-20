@@ -40,6 +40,9 @@ export default function BookerOrdersPage() {
       return apiFetch(`/api/orders?${params.toString()}`);
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 10000, // automatic live sync every 10s
   });
 
   if (userLoading || !user) {

@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/auth";
 import { moneyRaw, parseId } from "@/lib/utils";
 import { buildOrder, calculateItems } from "@/lib/orders";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth(req);
   if (!auth.user) {
@@ -22,7 +24,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "You do not have access to this order" }, { status: 403 });
     }
 
-    return NextResponse.json(order);
+    return NextResponse.json(order, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error) {
     console.error("Get order error:", error);
     return NextResponse.json({ error: "Failed to get order" }, { status: 500 });

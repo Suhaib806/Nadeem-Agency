@@ -22,6 +22,9 @@ export default function BookerTodayPage() {
     queryKey: ["booker-today-summary"],
     queryFn: () => apiFetch("/api/dashboard/summary"),
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 10000, // keep dashboard live every 10s
   });
 
   if (userLoading || !user) {

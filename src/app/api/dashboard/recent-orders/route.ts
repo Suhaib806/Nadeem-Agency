@@ -35,6 +35,11 @@ export async function GET(req: NextRequest) {
         grandTotal: moneyRaw(row.grand_total),
         status: String(row.status),
       })),
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      },
     );
   } catch (error) {
     console.error("Recent orders error:", error);

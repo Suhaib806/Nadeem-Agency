@@ -88,23 +88,30 @@ export async function GET(req: NextRequest) {
 
     const total = status ? (counts as Record<string, number>)[status] ?? itemsRes.rows.length : counts.all;
 
-    return NextResponse.json({
-      items: itemsRes.rows.map((row) => ({
-        id: Number(row.id),
-        orderNumber: String(row.order_number),
-        shopName: String(row.shop_name),
-        shopCode: String(row.shop_code),
-        orderBookerName: String(row.order_booker_name),
-        orderDate: String(row.order_date),
-        orderTime: String(row.order_time),
-        grandTotal: moneyRaw(row.grand_total),
-        status: String(row.status),
-      })),
-      total,
-      counts,
-      page,
-      pageSize,
-    });
+    return NextResponse.json(
+      {
+        items: itemsRes.rows.map((row) => ({
+          id: Number(row.id),
+          orderNumber: String(row.order_number),
+          shopName: String(row.shop_name),
+          shopCode: String(row.shop_code),
+          orderBookerName: String(row.order_booker_name),
+          orderDate: String(row.order_date),
+          orderTime: String(row.order_time),
+          grandTotal: moneyRaw(row.grand_total),
+          status: String(row.status),
+        })),
+        total,
+        counts,
+        page,
+        pageSize,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      },
+    );
   } catch (error) {
     console.error("List orders error:", error);
     return NextResponse.json({ error: "Failed to list orders" }, { status: 500 });

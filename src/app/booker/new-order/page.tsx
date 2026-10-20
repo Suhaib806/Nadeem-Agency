@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Search, MapPin, Store, RotateCcw, ZoomIn, Eye, Sparkles, Building2, LayoutGrid, List, Plus, Minus, ShoppingBag } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { ProductDetailModal } from "@/components/products/ProductDetailModal";
 
 export default function NewOrderPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useCurrentUser("order_booker");
 
   const [selectedArea, setSelectedArea] = useState("");
@@ -51,8 +52,17 @@ export default function NewOrderPage() {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
-      router.push("/booker/today");
+    onSuccess: async () => {
+      // Invalidate all order and summary queries across booker & admin views
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["booker-orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["booker-today-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["recent-orders"] }),
+      ]);
+      router.refresh();
+      router.push("/booker/orders");
     },
     onError: (err: any) => {
       setError(err.message || "Failed to submit order");

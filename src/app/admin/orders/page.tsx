@@ -49,6 +49,9 @@ export default function AdminOrdersPage() {
       return apiFetch(`/api/orders?${params.toString()}`);
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 15000,
   });
 
   const cancelMutation = useMutation({

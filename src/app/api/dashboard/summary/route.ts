@@ -35,16 +35,23 @@ export async function GET(req: NextRequest) {
       );
 
       const row = summary.rows[0];
-      return NextResponse.json({
-        date,
-        totalOrders: Number(row?.total_orders ?? 0),
-        shopsVisited: Number(row?.shops_visited ?? 0),
-        totalSales: moneyRaw(row?.total_sales),
-        activeOrderBookers: 1,
-        pendingOrders: Number(row?.pending_orders ?? 0),
-        cancelledOrders: Number(row?.cancelled_orders ?? 0),
-        salesByBooker: [],
-      });
+      return NextResponse.json(
+        {
+          date,
+          totalOrders: Number(row?.total_orders ?? 0),
+          shopsVisited: Number(row?.shops_visited ?? 0),
+          totalSales: moneyRaw(row?.total_sales),
+          activeOrderBookers: 1,
+          pendingOrders: Number(row?.pending_orders ?? 0),
+          cancelledOrders: Number(row?.cancelled_orders ?? 0),
+          salesByBooker: [],
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          },
+        },
+      );
     }
 
     // Admin dashboard: run all 3 in parallel using optimized indexes
@@ -79,22 +86,29 @@ export async function GET(req: NextRequest) {
     ]);
 
     const row = summary.rows[0];
-    return NextResponse.json({
-      date,
-      totalOrders: Number(row?.total_orders ?? 0),
-      shopsVisited: Number(row?.shops_visited ?? 0),
-      totalSales: moneyRaw(row?.total_sales),
-      activeOrderBookers: Number(bookers.rows[0]?.count ?? 0),
-      pendingOrders: Number(row?.pending_orders ?? 0),
-      cancelledOrders: Number(row?.cancelled_orders ?? 0),
-      salesByBooker: performance.rows.map((item) => ({
-        userId: Number(item.user_id),
-        name: item.name,
-        orders: Number(item.orders),
-        sales: moneyRaw(item.sales),
-        shopsVisited: Number(item.shops_visited),
-      })),
-    });
+    return NextResponse.json(
+      {
+        date,
+        totalOrders: Number(row?.total_orders ?? 0),
+        shopsVisited: Number(row?.shops_visited ?? 0),
+        totalSales: moneyRaw(row?.total_sales),
+        activeOrderBookers: Number(bookers.rows[0]?.count ?? 0),
+        pendingOrders: Number(row?.pending_orders ?? 0),
+        cancelledOrders: Number(row?.cancelled_orders ?? 0),
+        salesByBooker: performance.rows.map((item) => ({
+          userId: Number(item.user_id),
+          name: item.name,
+          orders: Number(item.orders),
+          sales: moneyRaw(item.sales),
+          shopsVisited: Number(item.shops_visited),
+        })),
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      },
+    );
   } catch (error) {
     console.error("Dashboard summary error:", error);
     return NextResponse.json({ error: "Failed to fetch dashboard summary" }, { status: 500 });

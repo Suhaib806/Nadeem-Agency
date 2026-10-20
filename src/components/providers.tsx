@@ -9,9 +9,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60, // 60 seconds
+            staleTime: 1000 * 5, // 5 seconds default for quick reactivity
             gcTime: 1000 * 60 * 10, // 10 minutes in memory cache
-            refetchOnWindowFocus: false,
+            refetchOnWindowFocus: true, // auto refresh when returning to tab/app
             refetchOnReconnect: true,
             retry: 1,
           },
