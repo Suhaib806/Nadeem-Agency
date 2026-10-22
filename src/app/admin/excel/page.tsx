@@ -158,7 +158,8 @@ export default function ExcelDeskPage() {
       }
 
       const blob = await res.blob();
-      let filename = `nadeem-orders-${today()}.xlsx`;
+      const ext = format === "pdf" ? "pdf" : "xlsx";
+      let filename = `nadeem-orders-${today()}.${ext}`;
       const disposition = res.headers.get("content-disposition");
       if (disposition && disposition.includes("filename=")) {
         const match = disposition.match(/filename=["']?([^"';]+)["']?/);

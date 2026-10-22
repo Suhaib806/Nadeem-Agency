@@ -6,6 +6,7 @@ import { today } from "@/lib/utils";
 import { generateReceiptPdf, ReceiptOrderData } from "@/lib/pdf-receipt";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
   try {
     // 1 row per order with full shop details and line items aggregated
     const result = await pool.query(
-      `SELECT o.id, o.order_number, o.order_date, o.order_time,
+      `SELECT o.id, o.order_number, o.order_date::text AS order_date, o.order_time,
               s.shop_code, s.shop_name, s.owner_name, s.phone, s.address, s.area, s.city, s.credit_limit,
               u.name AS order_booker,
               o.subtotal, o.discount, o.tax, o.grand_total, o.status,
@@ -95,21 +96,16 @@ export async function GET(req: NextRequest) {
 
     function toDateStr(val: any): string {
       if (!val) return "";
+      if (typeof val === "string") {
+        return val.slice(0, 10);
+      }
       if (val instanceof Date) {
         const y = val.getFullYear();
         const m = String(val.getMonth() + 1).padStart(2, "0");
         const d = String(val.getDate()).padStart(2, "0");
         return `${y}-${m}-${d}`;
       }
-      const str = String(val).trim();
-      const d = new Date(str);
-      if (!isNaN(d.getTime())) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
-      }
-      return str.slice(0, 10);
+      return String(val).slice(0, 10);
     }
 
     // ========================================================
@@ -230,8 +226,9 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Export error:", error);
-    return NextResponse.json({ error: "Failed to generate export file" }, { status: 500 });
+    const detail = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `Failed to generate export file: ${detail}` }, { status: 500 });
   }
 }

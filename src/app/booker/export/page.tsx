@@ -94,7 +94,8 @@ export default function BookerExportPage() {
       }
 
       const blob = await res.blob();
-      let filename = `${user.name.toLowerCase().replace(/\s+/g, "_")}_orders_${today()}.xlsx`;
+      const ext = format === "pdf" ? "pdf" : "xlsx";
+      let filename = `${user.name.toLowerCase().replace(/\s+/g, "_")}_orders_${today()}.${ext}`;
       const disposition = res.headers.get("content-disposition");
       if (disposition && disposition.includes("filename=")) {
         const match = disposition.match(/filename=["']?([^"';]+)["']?/);
