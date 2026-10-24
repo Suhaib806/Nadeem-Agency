@@ -13,6 +13,18 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: '/products/:filename',
+        destination: '/api/images/:filename',
+      },
+      {
+        source: '/companies/:filename',
+        destination: '/api/images/:filename',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

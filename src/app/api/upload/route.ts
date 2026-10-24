@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { pool } from "@/db";
 import fs from "fs/promises";
 import path from "path";
 
@@ -27,9 +28,6 @@ export async function POST(req: NextRequest) {
     const isProducts = rawFolder === "products" || !rawFolder;
     const isCompanies = rawFolder === "companies";
     const targetFolder = isProducts ? "products" : isCompanies ? "companies" : rawFolder;
-
-    const uploadDir = path.join(process.cwd(), "public", targetFolder);
-    await fs.mkdir(uploadDir, { recursive: true });
 
     // Validate image extension & MIME types (including Windows/Edge JPEG variants)
     const ext = (path.extname(file.name) || (file.type?.includes("png") ? ".png" : ".jpg")).toLowerCase();
@@ -84,8 +82,37 @@ export async function POST(req: NextRequest) {
       fileName = `${cleanBase}-${Date.now()}${ext}`;
     }
 
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, buffer);
+    const mimeType = file.type || (ext === ".png" ? "image/png" : ext === ".svg" ? "image/svg+xml" : "image/jpeg");
+
+    // 1. Always persist in PostgreSQL (persistent across all serverless lambdas on Vercel)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS uploaded_images (
+        id SERIAL PRIMARY KEY,
+        file_name TEXT NOT NULL UNIQUE,
+        mime_type TEXT NOT NULL,
+        data BYTEA NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(
+      `INSERT INTO uploaded_images (file_name, mime_type, data)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (file_name) DO UPDATE SET mime_type = $2, data = $3, created_at = NOW();`,
+      [fileName, mimeType, buffer]
+    );
+
+    // 2. Also try writing to local disk when running in development environment
+    try {
+      const uploadDir = path.join(process.cwd(), "public", targetFolder);
+      await fs.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, fileName);
+      await fs.writeFile(filePath, buffer);
+    } catch (fsErr: any) {
+      // In serverless environments like Vercel, the filesystem (/var/task) is read-only (EROFS).
+      // Since the image is safely persisted in PostgreSQL, disk write failure is non-fatal.
+      console.log("Local filesystem write skipped (serverless environment):", fsErr?.message);
+    }
 
     const publicUrl = `/${targetFolder}/${fileName}`;
     return NextResponse.json({ url: publicUrl, success: true, fileName }, { status: 201 });
