@@ -69,19 +69,24 @@ export function CompanyModal({ company, isOpen, onClose, onSuccess }: CompanyMod
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "same-origin",
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to upload logo");
+        throw new Error(data?.error || `Upload failed with status ${res.status}`);
       }
 
-      const data = await res.json();
-      setLogo(data.url);
+      if (data?.url) {
+        setLogo(data.url);
+      }
     } catch (err: any) {
+      console.error("Company logo upload error:", err);
       setError(err.message || "Logo upload failed");
     } finally {
       setIsUploading(false);
+      e.target.value = "";
     }
   };
 

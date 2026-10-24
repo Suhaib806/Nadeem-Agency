@@ -102,19 +102,25 @@ function ProductForm({
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "same-origin",
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to upload image");
+        throw new Error(data?.error || `Upload failed with status ${res.status}`);
       }
 
-      const data = await res.json();
-      setForm((f) => ({ ...f, imageUrl: data.url }));
+      if (data?.url) {
+        setForm((f) => ({ ...f, imageUrl: data.url }));
+      }
     } catch (err: any) {
+      console.error("Product image upload error:", err);
       setError(err.message || "Image upload failed");
     } finally {
       setIsUploading(false);
+      // Reset input value so re-selecting the same file triggers onChange
+      e.target.value = "";
     }
   };
 

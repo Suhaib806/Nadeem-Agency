@@ -53,12 +53,13 @@ export async function getSessionUser(req?: NextRequest): Promise<SessionUser | n
   let token: string | undefined;
   if (req) {
     token = req.cookies.get(SESSION_COOKIE)?.value;
-  } else {
+  }
+  if (!token) {
     try {
       const cookieStore = await cookies();
       token = cookieStore.get(SESSION_COOKIE)?.value;
     } catch {
-      return null;
+      // Cookies store unavailable in non-request contexts
     }
   }
   if (!token) return null;

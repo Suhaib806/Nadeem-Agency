@@ -16,47 +16,81 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "products";
 
-    if (!file) {
+    if (!file || typeof file === "string") {
       return NextResponse.json({ error: "No image file provided" }, { status: 400 });
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif"];
-    if (!allowedTypes.includes(file.type)) {
+    // Determine target subfolder:
+    // "products" -> directly into public/products
+    // "companies" -> directly into public/companies
+    const rawFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "").toLowerCase();
+    const isProducts = rawFolder === "products" || !rawFolder;
+    const isCompanies = rawFolder === "companies";
+    const targetFolder = isProducts ? "products" : isCompanies ? "companies" : rawFolder;
+
+    const uploadDir = path.join(process.cwd(), "public", targetFolder);
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    // Validate image extension & MIME types (including Windows/Edge JPEG variants)
+    const ext = (path.extname(file.name) || (file.type?.includes("png") ? ".png" : ".jpg")).toLowerCase();
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif", ".jfif", ".avif"];
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/pjpeg",
+      "image/png",
+      "image/x-png",
+      "image/webp",
+      "image/svg+xml",
+      "image/gif",
+      "image/jfif",
+      "image/avif",
+      "application/octet-stream",
+    ];
+
+    const hasAllowedExt = allowedExtensions.includes(ext);
+    const hasAllowedMime = file.type ? allowedMimeTypes.includes(file.type.toLowerCase()) : false;
+
+    if (!hasAllowedExt && !hasAllowedMime) {
       return NextResponse.json(
         { error: "Invalid file type. Please upload a JPG, PNG, WebP, SVG, or GIF image." },
         { status: 400 },
       );
     }
 
-    // Limit size to 10MB
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "Image size exceeds 10MB limit." }, { status: 400 });
+    // Limit size to 15MB
+    if (file.size > 15 * 1024 * 1024) {
+      return NextResponse.json({ error: "Image size exceeds 15MB limit." }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Sanitize subfolder name to prevent directory traversal
-    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "");
-    const uploadDir = path.join(process.cwd(), "public", "uploads", safeFolder);
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    // Generate clean filename
-    const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
-    const cleanBase = path
-      .basename(file.name, ext)
+    // Clean base name from the uploaded file's original name
+    const rawBase = path.basename(file.name, path.extname(file.name));
+    let cleanBase = rawBase
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, "-")
-      .slice(0, 30);
-    const uniqueName = `${cleanBase || "product"}-${Date.now()}${ext}`;
-    const filePath = path.join(uploadDir, uniqueName);
+      .replace(/[^a-z0-9_-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
 
+    if (!cleanBase) {
+      cleanBase = `product-${Date.now()}`;
+    }
+
+    // For generic camera/file names like "image", "photo", "img", append a timestamp to avoid collisions
+    let fileName = `${cleanBase}${ext}`;
+    if (["image", "img", "photo", "product", "file", "download", "untitled", "screenshot"].includes(cleanBase)) {
+      fileName = `${cleanBase}-${Date.now()}${ext}`;
+    }
+
+    const filePath = path.join(uploadDir, fileName);
     await fs.writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/${safeFolder}/${uniqueName}`;
-    return NextResponse.json({ url: publicUrl, success: true }, { status: 201 });
-  } catch (error) {
+    const publicUrl = `/${targetFolder}/${fileName}`;
+    return NextResponse.json({ url: publicUrl, success: true, fileName }, { status: 201 });
+  } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Failed to upload image" }, { status: 500 });
   }
 }
